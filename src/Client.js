@@ -3,7 +3,7 @@
 const EventEmitter = require('events');
 const puppeteer = require('puppeteer');
 const moduleRaid = require('@pedroslopez/moduleraid/moduleraid');
-const antibotbrowser = require("antibotbrowser")
+/*const antibotbrowser = require("antibotbrowser")*/
 
 const Util = require('./util/Util');
 const InterfaceController = require('./util/InterfaceController');
@@ -18,8 +18,9 @@ const ContactFactory = require('./factories/ContactFactory');
 const WebCacheFactory = require('./webCache/WebCacheFactory');
 const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction } = require('./structures');
 const NoAuth = require('./authStrategies/NoAuth');
-const Xvfb = require('xvfb');
 
+/*const Xvfb = require('xvfb');
+*/
 /**
  * Starting point for interacting with the WhatsApp Web API
  * @extends {EventEmitter}
@@ -61,7 +62,6 @@ const Xvfb = require('xvfb');
  * @fires Client#group_membership_request
  * @fires Client#vote_update
  */
-
 class Client extends EventEmitter {
     constructor(options = {}) {
         super();
@@ -87,6 +87,8 @@ class Client extends EventEmitter {
 
         this.currentIndexHtml = null;
         this.lastLoggedOut = false;
+
+        this.id = null
 
         Util.setFfmpegPath(this.options.ffmpegPath);
     }
@@ -277,8 +279,8 @@ class Client extends EventEmitter {
      * Sets up events and requirements, kicks off authentication request
      */
     async initialize() {
-        const xvfb = new Xvfb()
-        xvfb.startSync();
+/*        const xvfb = new Xvfb()
+        xvfb.startSync();*/
         let 
             /**
              * @type {puppeteer.Browser}
@@ -295,12 +297,15 @@ class Client extends EventEmitter {
         await this.authStrategy.beforeBrowserInitialized();
 
         const puppeteerOpts = this.options.puppeteer;
-        const antibrowser = await antibotbrowser.startbrowser();
+/*        const antibrowser = await antibotbrowser.startbrowser();
         while(true){
-            if(antibrowser.websokcet)browser = await puppeteer.connect({browserWSEndpoint: antibrowser.websokcet, protocolTimeout: 0, timeout: 0});
-        }
-        page = await browser.newPage();
-/*        if (puppeteerOpts && puppeteerOpts.browserWSEndpoint) {
+            if(antibrowser.websokcet){
+                browser = await puppeteer.connect({browserWSEndpoint: antibrowser.websokcet, protocolTimeout: 0, timeout: 0});
+                break
+            }
+        }*/
+        /*page = await browser.newPage();*/
+        if (puppeteerOpts && puppeteerOpts.browserWSEndpoint) {
         } else {
             const browserArgs = [...(puppeteerOpts.args || [])];
             if(!browserArgs.find(arg => arg.includes('--user-agent'))) {
@@ -309,9 +314,9 @@ class Client extends EventEmitter {
             // navigator.webdriver fix
             browserArgs.push('--disable-blink-features=AutomationControlled');
 
-            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs});
+            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id??Util.generateRandomIdForFolder()}`});
             page = (await browser.pages())[0];
-        }*/
+        }
 
         if (this.options.proxyAuthentication !== undefined) {
             await page.authenticate(this.options.proxyAuthentication);

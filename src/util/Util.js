@@ -11,6 +11,9 @@ const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /**
  * Utility methods
  */
+const randomId = function(length = 6) {
+  return Math.random().toString(36).substring(2, length+2);
+}
 class Util {
     constructor() {
         throw new Error(`The ${this.constructor.name} class may not be instantiated.`);
@@ -180,6 +183,15 @@ class Util {
      */
     static setFfmpegPath(path) {
         ffmpeg.setFfmpegPath(path);
+    }
+    static generateRandomIdForFolder(path){
+        const foldersNames = (()=>{try{return fs.readdirSync(path).filter(file=>fs.statSync(path+'/'+file).isDirectory())}catch(e){return ([])}})()
+        return (()=>{while(true){
+            const id = randomId(20)
+            if(!foldersNames.some(folderId=>folderId===id)){
+                return id
+            }
+        }})() 
     }
 }
 
