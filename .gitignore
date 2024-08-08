@@ -1,3 +1,6 @@
+.puppeteer_cache
+.wwebjs_cache
+
 # Logs
 logs
 *.log

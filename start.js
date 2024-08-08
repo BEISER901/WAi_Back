@@ -6,7 +6,7 @@ const Client = require("./src/Client.js")
 const qrcode = require('qrcode-terminal')
 const client = new Client()
 
-client.id = null
+client.id = "kbqogin8h4a"
 
 client.on('qr', (qr) => {
     // Generate and scan this code with your phone
@@ -14,14 +14,12 @@ client.on('qr', (qr) => {
 });
 
 client.on('ready', async () => {
-/*    const page = client.pupPage;
-    const arrChats = await page.evaluate(() => {
-    	return Array.from(document.querySelectorAll("#pane-side  > *")[2].querySelectorAll("div._ak8q")).map(el=>el.innerText)
-    })*/
-    const chats = await client.getChats()
-    console.log(chats[0])
-    const chat = await client.getChatById("77052115569@c.us")
-    console.log(chat.lastMessage._data.id)
+    /*console.log(await client.getChatLabels("77052115569@c.us"))*/
+    const chat = await client.getMessageById("true_77071911700@c.us_3EB008926FCC54BB07D507_out")
+    console.log(chat)
+/*    const chats = await client.getChats()
+    console.log(chats[0])*/
+/*    console.log(chat.lastMessage._data.id)*/
 });
 
 

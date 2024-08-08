@@ -1519,7 +1519,6 @@ class Client extends EventEmitter {
         const labels = await this.pupPage.evaluate(async (chatId) => {
             return window.WWebJS.getChatLabels(chatId);
         }, chatId);
-
         return labels.map(data => new Label(this, data));
     }
 
