@@ -184,14 +184,19 @@ class Util {
     static setFfmpegPath(path) {
         ffmpeg.setFfmpegPath(path);
     }
-    static generateRandomIdForFolder(path){
-        const foldersNames = (()=>{try{return fs.readdirSync(path).filter(file=>fs.statSync(path+'/'+file).isDirectory())}catch(e){return ([])}})()
+    static generateRandomIdForFolder(){
+        const foldersNames = (()=>{try{return fs.readdirSync("./.puppeteer_cache/").filter(file=>fs.statSync("./.puppeteer_cache/"+file).isDirectory())}catch(e){return ([])}})()
         return (()=>{while(true){
             const id = randomId(20)
             if(!foldersNames.some(folderId=>folderId===id)){
                 return id
             }
         }})() 
+    }
+    static removeClientFolderById(id){
+       if (fs.existsSync("./.puppeteer_cache/" + id)) {
+         fs.rmdirSync("./.puppeteer_cache/" + id)
+       }
     }
 }
 
