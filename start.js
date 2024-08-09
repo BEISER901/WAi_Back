@@ -23,8 +23,6 @@ function compare( a, b ) {
   return 0;
 }
 
-// https://web.whatsapp.com/send/?phone=77052115569
-
 client.on('ready', async () => {
     const chats = await client.getChats()
     // chats[index] index is where chat you have get, index - 0 is first chat in your list.
@@ -35,15 +33,3 @@ client.on('ready', async () => {
 
 
 client.initialize();
-
-
-
-// var r = indexedDB.open("model-storage");
-// r.onsuccess = function(event) {
-//     var db = event.target.result;
-//     let transaction = db.transaction("message", "readwrite")
-//     let message = transaction.objectStore("message")
-//     result = message.getAll())
-// }
-
-/*result.result.filter(msg=>msg.id.includes("_out") && msg.type == "chat")*/
