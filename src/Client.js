@@ -18,6 +18,7 @@ const ContactFactory = require('./factories/ContactFactory');
 const WebCacheFactory = require('./webCache/WebCacheFactory');
 const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction } = require('./structures');
 const NoAuth = require('./authStrategies/NoAuth');
+const selector = require('./../selector.js');
 
 /*const Xvfb = require('xvfb');
 */
@@ -1050,7 +1051,6 @@ class Client extends EventEmitter {
 
             let messagesObject = await window.Store.Msg.getMessagesById([messageId]);
             if (messagesObject && messagesObject.messages.length) msg = messagesObject.messages[0];
-            
             if(msg) return window.WWebJS.getMessageModel(msg);
         }, messageId);
 
@@ -1540,6 +1540,53 @@ class Client extends EventEmitter {
         }, labelId);
 
         return Promise.all(chatIds.map(id => this.getChatById(id)));
+    }
+
+    async getCurrentChatName() {
+      return (await this.pupPage.evaluate((selector) => {
+        let el = document.querySelector(selector);
+        return el ? el.innerText : '';
+      }, selector.user_name));
+    }
+
+    async openChat(user) {
+      // replace selector with selected user
+      let user_chat_selector = selector.user_chat;
+      user_chat_selector = user_chat_selector.replace('XXX', user);
+
+      // type user into search to avoid scrolling to find hidden elements
+      await this.pupPage.click(selector.search_box)
+      // make sure it's empty
+      await this.pupPage.evaluate(() => document.execCommand( 'selectall', false, null ))
+      await this.pupPage.keyboard.press("Backspace");
+      // find user
+      await this.pupPage.keyboard.type(user)
+        await this.pupPage.waitForSelector(user_chat_selector);
+      await this.pupPage.click(user_chat_selector);
+      
+      let name = await this.getCurrentChatName();
+      if (!name) {
+        console.log('Could not find specified user "' + user + '" in chat threads\n');
+      }
+    }
+
+    async getAllMessages() {
+        function delay(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms))
+        }
+        while(true){
+            await delay(700)
+            await this.pupPage.waitForSelector(selector.scroll_top)
+            await this.pupPage.evaluate((selector)=>{console.log(selector); document.querySelector(selector).scrollIntoView()}, selector.scroll_top)
+            try{await this.pupPage.waitForRequest(request=>{return true}, {timeout: 2000})}catch(e){
+                return await this.pupPage.evaluate(({chat_messages, date_message, text_message})=>{
+                    const messages = Array.from(document.querySelectorAll(chat_messages))
+                    return messages.map(message=>{
+                        return { date: message.querySelector(date_message)?.getAttribute("data-pre-plain-text").split("[")[1].split("]")[0], text: message.querySelector(text_message)?.innerText, me: message.classList.contains("message-out"), from: message.querySelector(date_message)?.getAttribute("data-pre-plain-text").split("] ")[1].replace(": ", "") }
+                    })
+                }, selector)
+            }
+        }
     }
 
     /**
