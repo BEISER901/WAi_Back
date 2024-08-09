@@ -33,4 +33,4 @@ const startClient = async (clientId) => {
         console.log("A new client with the identifier: " + client.id)
     }
 }
-startClient("kbqogin8h4a")
+startClient()
