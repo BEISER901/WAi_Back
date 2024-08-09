@@ -276,8 +276,10 @@ class Client extends EventEmitter {
     /**
      * Sets up events and requirements, kicks off authentication request
      */
-    async initialize() {
+    async initialize() { 
         this.id = this.id??Util.generateRandomIdForFolder();
+        const removeFolder = () => Util.removeClientFolderById(this.id)
+        proccess.on("exit", removeFolder);
         let 
             /**
              * @type {puppeteer.Browser}
@@ -351,6 +353,7 @@ class Client extends EventEmitter {
             }
             await this.inject(true);
         });
+        proccess.removeListener("exit", removeFolder)
     }
 
     /**
