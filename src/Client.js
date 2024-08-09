@@ -3,7 +3,6 @@
 const EventEmitter = require('events');
 const puppeteer = require('puppeteer');
 const moduleRaid = require('@pedroslopez/moduleraid/moduleraid');
-/*const antibotbrowser = require("antibotbrowser")*/
 
 const Util = require('./util/Util');
 const InterfaceController = require('./util/InterfaceController');
@@ -20,8 +19,6 @@ const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, Gr
 const NoAuth = require('./authStrategies/NoAuth');
 const selector = require('./../selector.js');
 
-/*const Xvfb = require('xvfb');
-*/
 /**
  * Starting point for interacting with the WhatsApp Web API
  * @extends {EventEmitter}
@@ -280,8 +277,6 @@ class Client extends EventEmitter {
      * Sets up events and requirements, kicks off authentication request
      */
     async initialize() {
-/*        const xvfb = new Xvfb()
-        xvfb.startSync();*/
         let 
             /**
              * @type {puppeteer.Browser}
@@ -298,14 +293,6 @@ class Client extends EventEmitter {
         await this.authStrategy.beforeBrowserInitialized();
 
         const puppeteerOpts = this.options.puppeteer;
-/*        const antibrowser = await antibotbrowser.startbrowser();
-        while(true){
-            if(antibrowser.websokcet){
-                browser = await puppeteer.connect({browserWSEndpoint: antibrowser.websokcet, protocolTimeout: 0, timeout: 0});
-                break
-            }
-        }*/
-        /*page = await browser.newPage();*/
         if (puppeteerOpts && puppeteerOpts.browserWSEndpoint) {
         } else {
             const browserArgs = [...(puppeteerOpts.args || [])];
