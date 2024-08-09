@@ -11,8 +11,6 @@ const startClient = async (clientId) => {
     // If clientId undefined or null will create new clientId.
     client.id = clientId
 
-
-
     client.on('qr', (qr) => {
         // Generate and scan this code with your phone
         qrcode.generate(qr, {small: true})
@@ -26,8 +24,13 @@ const startClient = async (clientId) => {
         console.log(await client.getAllMessages())
     });
 
+    await client.initialize();
 
-    client.initialize();
+    if(clientId){
+        console.log("User configuration with indicator: " + clientId)
+    }else{
+        console.log("A new client with the identifier: " + client.id)
+    }
 }
 
 startClient()
