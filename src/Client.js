@@ -279,7 +279,7 @@ class Client extends EventEmitter {
     async initialize() { 
         this.id = this.id??Util.generateRandomIdForFolder();
         const removeFolder = () => Util.removeClientFolderById(this.id)
-        proccess.on("exit", removeFolder);
+        process.on("exit", removeFolder);
         let 
             /**
              * @type {puppeteer.Browser}
@@ -353,7 +353,7 @@ class Client extends EventEmitter {
             }
             await this.inject(true);
         });
-        proccess.removeListener("exit", removeFolder)
+        process.removeListener("exit", removeFolder)
     }
 
     /**
@@ -1567,8 +1567,7 @@ class Client extends EventEmitter {
         }
         while(true){
             await delay(700)
-            await this.pupPage.waitForSelector(selector.scroll_top)
-            await this.pupPage.evaluate((selector)=>{console.log(selector); document.querySelector(selector).scrollIntoView()}, selector.scroll_top)
+            await this.pupPage.evaluate((selector)=>{document.querySelector(selector)?.scrollIntoView()}, selector.scroll_top)
             try{await this.pupPage.waitForRequest(request=>{return true}, {timeout: 2000})}catch(e){
                 return await this.pupPage.evaluate(({chat_messages, date_message, text_message})=>{
                     const messages = Array.from(document.querySelectorAll(chat_messages))

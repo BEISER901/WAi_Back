@@ -20,8 +20,9 @@ const startClient = async (clientId) => {
         const chats = await client.getChats()
         // chats[index] index is where chat you have get, index - 0 is first chat in your list.
         await client.openChat(chats[0].name)
-        console.log(await     client.getCurrentChatName())
+        console.log(await client.getCurrentChatName())
         console.log(await client.getAllMessages())
+        client.destroy()
     });
 
     await client.initialize();
@@ -32,5 +33,4 @@ const startClient = async (clientId) => {
         console.log("A new client with the identifier: " + client.id)
     }
 }
-
-startClient()
+startClient("kbqogin8h4a")

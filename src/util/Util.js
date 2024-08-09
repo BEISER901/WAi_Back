@@ -5,7 +5,7 @@ const Crypto = require('crypto');
 const { tmpdir } = require('os');
 const ffmpeg = require('fluent-ffmpeg');
 const webp = require('node-webpmux');
-const fs = require('fs').promises;
+const fs = require('fs');
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
 /**
@@ -194,9 +194,7 @@ class Util {
         }})() 
     }
     static removeClientFolderById(id){
-       if (fs.existsSync("./.puppeteer_cache/" + id)) {
-         fs.rmdirSync("./.puppeteer_cache/" + id)
-       }
+        try{fs.rmdirSync("./.puppeteer_cache/" + id, { recursive: true, force: true })}catch(e){}
     }
 }
 
