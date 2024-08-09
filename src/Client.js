@@ -277,6 +277,7 @@ class Client extends EventEmitter {
      * Sets up events and requirements, kicks off authentication request
      */
     async initialize() {
+        this.id = this.id??Util.generateRandomIdForFolder();
         let 
             /**
              * @type {puppeteer.Browser}
@@ -302,7 +303,7 @@ class Client extends EventEmitter {
             // navigator.webdriver fix
             browserArgs.push('--disable-blink-features=AutomationControlled');
 
-            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id??Util.generateRandomIdForFolder()}`});
+            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id}`});
             page = (await browser.pages())[0];
         }
 
