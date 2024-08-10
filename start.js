@@ -33,4 +33,14 @@ const startClient = async (clientId) => {
         console.log("A new client with the identifier: " + client.id)
     }
 }
-startClient()
+
+const express = require('express');
+const app = express();
+
+app.get('/:clientid', (req, res) => {
+  if(req.params?.clientid == "new"){
+      startClient()
+  }else{
+      startClient(req.params?.clientid)
+  }
+});
