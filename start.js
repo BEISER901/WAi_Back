@@ -2,7 +2,7 @@
 
 // ./start.js
 
-const Client = require("./src/Client.js")
+const Client = require("./WhatsApp_Client/src/Client.js")
 const qrcode = require('qrcode-terminal')
 
 const startClient = async (clientId) => {
@@ -19,9 +19,9 @@ const startClient = async (clientId) => {
     client.on('ready', async () => {
         const chats = await client.getChats()
         // chats[index] index is where chat you have get, index - 0 is first chat in your list.
-        await client.openChat(chats[0].name)
+        await client.openChat(chats[1].name)
         console.log(await client.getCurrentChatName())
-        console.log(await client.getAllMessages())
+        console.log((await client.getAllMessages()).length)
         client.destroy()
     });
 

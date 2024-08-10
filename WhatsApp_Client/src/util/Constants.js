@@ -1,4 +1,4 @@
-'use strict';
+;'use strict';
 
 exports.WhatsWebURL = 'https://web.whatsapp.com/';
 

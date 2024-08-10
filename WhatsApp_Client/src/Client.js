@@ -305,7 +305,7 @@ class Client extends EventEmitter {
             // navigator.webdriver fix
             browserArgs.push('--disable-blink-features=AutomationControlled');
 
-            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id}`});
+            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id}`, protocolTimeout: 0, timeout: 0});
             page = (await browser.pages())[0];
         }
 
@@ -1566,10 +1566,16 @@ class Client extends EventEmitter {
           return new Promise(resolve => setTimeout(resolve, ms))
         }
         while(true){
-            await delay(700)
-            await this.pupPage.evaluate((selector)=>{document.querySelector(selector)?.scrollIntoView()}, selector.scroll_top)
-            try{await this.pupPage.waitForRequest(request=>{return true}, {timeout: 2000})}catch(e){
-                return await this.pupPage.evaluate(({chat_messages, date_message, text_message})=>{
+            await delay(1000)
+            const isButton = await this.pupPage.evaluate((selector)=>{return document.querySelector(selector)?.nodeName=="BUTTON"}, selector.scroll_top)
+            await this.pupPage.waitForSelector(selector.scroll_top) 
+            await this.pupPage.evaluate((selector)=>{
+                document.querySelector(selector).scrollIntoView(); document.querySelector(selector).click()
+            }, selector.scroll_top)
+            try{
+                await this.pupPage.waitForSelector(".x10l6tqk.x8k05lb.x9f619.x78zum5.xl56j7k.xh8yej3.x12mz7nx.xsyo7zv.x47corl", {timeout: 5000})
+            }catch(e){
+                if(await this.pupPage.evaluate(()=>!document.querySelector(".x10l6tqk.x8k05lb.x9f619.x78zum5.xl56j7k.xh8yej3.x12mz7nx.xsyo7zv.x47corl")))return await this.pupPage.evaluate(({chat_messages, date_message, text_message})=>{
                     const messages = Array.from(document.querySelectorAll(chat_messages))
                     return messages.map(message=>{
                         return { date: message.querySelector(date_message)?.getAttribute("data-pre-plain-text").split("[")[1].split("]")[0], text: message.querySelector(text_message)?.innerText, me: message.classList.contains("message-out"), from: message.querySelector(date_message)?.getAttribute("data-pre-plain-text").split("] ")[1].replace(": ", "") }
