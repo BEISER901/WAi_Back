@@ -1570,17 +1570,20 @@ class Client extends EventEmitter {
         while(true){
             await delay(1000)
             const isButton = await this.pupPage.evaluate((selector)=>{return document.querySelector(selector)?.nodeName=="BUTTON"}, selector.scroll_top)
-            try{await this.pupPage.waitForSelector(selector.scroll_top, {timeout: 5000})}catch(e){
-                return await this.pupPage.evaluate(({chat_messages, date_message, text_message})=>{
+            try{
+                await this.pupPage.waitForSelector(selector.scroll_top, {timeout: 10000})
+                await this.pupPage.evaluate((selector)=>{
+                    document.querySelector(selector).scrollIntoView()
+                    document.querySelector(selector)?.click()
+                }, selector.scroll_top)
+            }catch(e){
+                return (await this.pupPage.evaluate(({chat_messages, date_message, text_message})=>{
                     const messages = Array.from(document.querySelectorAll(chat_messages))
                     return messages.map(message=>{
                         return { date: message.querySelector(date_message)?.getAttribute("data-pre-plain-text").split("[")[1].split("]")[0], text: message.querySelector(text_message)?.innerText, me: message.classList.contains("message-out"), from: message.querySelector(date_message)?.getAttribute("data-pre-plain-text").split("] ")[1].replace(": ", "") }
                     })
-                }, selector)
+                }, selector))
             } 
-            await this.pupPage.evaluate((selector)=>{
-                document.querySelector(selector)?.scrollIntoView(); document.querySelector(selector)?.click()
-            }, selector.scroll_top)
             try{
                 await this.pupPage.waitForSelector(".x10l6tqk.x8k05lb.x9f619.x78zum5.xl56j7k.xh8yej3.x12mz7nx.xsyo7zv.x47corl", {timeout: 5000})
             }catch(e){
