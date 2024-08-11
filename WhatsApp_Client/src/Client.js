@@ -1553,7 +1553,7 @@ class Client extends EventEmitter {
       await this.pupPage.evaluate(() => document.execCommand( 'selectall', false, null ))
       await this.pupPage.keyboard.press("Backspace");
       // find user
-      await this.pupPage.keyboard.type(phone)
+      await this.pupPage.keyboard.type(user)
         await this.pupPage.waitForSelector(user_chat_selector);
       await this.pupPage.click(user_chat_selector);
       
