@@ -1579,7 +1579,7 @@ class Client extends EventEmitter {
                 }, selector)
             } 
             await this.pupPage.evaluate((selector)=>{
-                document.querySelector(selector).scrollIntoView(); document.querySelector(selector).click()
+                document.querySelector(selector)?.scrollIntoView(); document.querySelector(selector)?.click()
             }, selector.scroll_top)
             try{
                 await this.pupPage.waitForSelector(".x10l6tqk.x8k05lb.x9f619.x78zum5.xl56j7k.xh8yej3.x12mz7nx.xsyo7zv.x47corl", {timeout: 5000})
