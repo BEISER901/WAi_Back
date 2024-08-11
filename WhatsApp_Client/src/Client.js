@@ -305,7 +305,7 @@ class Client extends EventEmitter {
             // navigator.webdriver fix
             browserArgs.push('--disable-blink-features=AutomationControlled');
 
-            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id}`, protocolTimeout: 0, timeout: 0});
+            browser = await puppeteer.launch({...puppeteerOpts, args: [...browserArgs, "--no-sandbox"], userDataDir: `./.puppeteer_cache/${this.id}`, protocolTimeout: 0, timeout: 0});
             this.emit(Events.BROWSER_LAUNCH, 'launch');
             page = (await browser.pages())[0];
         }
