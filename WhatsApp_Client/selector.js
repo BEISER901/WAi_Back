@@ -2,7 +2,7 @@ module.exports = {
 
     // user to chat with selector. We will "click" this selector so that chat window of
     // specified user is opened. XXX will be replaced by actual user.
-    user_chat: '[title="XXX"] .matched-text',
+    user_chat: '*[title="XXX"]',
 
     // search box to find users
     search_box: '#side [contenteditable]',

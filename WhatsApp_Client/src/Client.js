@@ -306,6 +306,7 @@ class Client extends EventEmitter {
             browserArgs.push('--disable-blink-features=AutomationControlled');
 
             browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id}`, protocolTimeout: 0, timeout: 0});
+            this.emit(Events.BROWSER_LAUNCH, 'launch');
             page = (await browser.pages())[0];
         }
 
@@ -1540,18 +1541,19 @@ class Client extends EventEmitter {
       }, selector.user_name));
     }
 
-    async openChat(user) {
+    async openChat(phone, user) {
       // replace selector with selected user
       let user_chat_selector = selector.user_chat;
       user_chat_selector = user_chat_selector.replace('XXX', user);
 
       // type user into search to avoid scrolling to find hidden elements
+        await this.pupPage.waitForSelector(selector.search_box);
       await this.pupPage.click(selector.search_box)
       // make sure it's empty
       await this.pupPage.evaluate(() => document.execCommand( 'selectall', false, null ))
       await this.pupPage.keyboard.press("Backspace");
       // find user
-      await this.pupPage.keyboard.type(user)
+      await this.pupPage.keyboard.type(phone)
         await this.pupPage.waitForSelector(user_chat_selector);
       await this.pupPage.click(user_chat_selector);
       
@@ -1568,7 +1570,14 @@ class Client extends EventEmitter {
         while(true){
             await delay(1000)
             const isButton = await this.pupPage.evaluate((selector)=>{return document.querySelector(selector)?.nodeName=="BUTTON"}, selector.scroll_top)
-            await this.pupPage.waitForSelector(selector.scroll_top) 
+            try{await this.pupPage.waitForSelector(selector.scroll_top, {timeout: 5000})}catch(e){
+                return await this.pupPage.evaluate(({chat_messages, date_message, text_message})=>{
+                    const messages = Array.from(document.querySelectorAll(chat_messages))
+                    return messages.map(message=>{
+                        return { date: message.querySelector(date_message)?.getAttribute("data-pre-plain-text").split("[")[1].split("]")[0], text: message.querySelector(text_message)?.innerText, me: message.classList.contains("message-out"), from: message.querySelector(date_message)?.getAttribute("data-pre-plain-text").split("] ")[1].replace(": ", "") }
+                    })
+                }, selector)
+            } 
             await this.pupPage.evaluate((selector)=>{
                 document.querySelector(selector).scrollIntoView(); document.querySelector(selector).click()
             }, selector.scroll_top)
