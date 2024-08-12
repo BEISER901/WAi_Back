@@ -31,6 +31,7 @@ module.exports = {
 
     scroll_top: '.x14m1o6m.x126m2zf.x1b9z3ur.x9f619.x1rg5ohu.x1okw0bk.x193iq5w.x123j3cw.xn6708d.x10b6aqq.x1ye3gou.x13a8xbf.xdod15v.x2b8uid.x1lq5wgf.xgqcy7u.x30kzoy.x9jhf4c',
 
+    chat_in_progress: '.x14m1o6m.x150wa6m.x1b9z3ur.x9f619.x1rg5ohu.x1okw0bk.x193iq5w.x123j3cw.xn6708d.x10b6aqq.x1ye3gou.x13a8xbf.xdod15v.x2b8uid.x1lq5wgf.xgqcy7u.x30kzoy.x9jhf4c',
     chat_messages: '#main div.message-out,#main div.message-in',
     date_message: '[data-pre-plain-text]',
     text_message: '[dir="ltr"]'

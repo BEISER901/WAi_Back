@@ -66,12 +66,12 @@ const app = express();
 app.get('/:clientid', (req, res) => {
     if(req.params?.clientid === "favicon.ico")return
     if(clientsOpened[req.params?.clientid]){
-        res.send(clientsOpened[req.params?.clientid].info)
+        try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
     }else{        
         startClient(req.params?.clientid, (qr, id)=>{
-            res.send({id, qr})
+            try{res.send({id, qr})}catch(e){}
         }, (id)=>{
-            try{res.send({ id })}catch(e){}
+            try{try{res.send({ id })}catch(e){}}catch(e){}
         })
     }
 })
@@ -80,13 +80,13 @@ app.get('/:clientid/chats', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr){
         const chats = await clientsOpened[req.params?.clientid].client.getChats()
-        res.send(chats)
+        try{res.send(chats)}catch(e){}
     }else{
         startClient(req.params?.clientid, (qr, id)=>{
-            res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
+            try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
         }, async (id)=>{
             const chats = await clientsOpened[id].client.getChats()
-            res.send(chats)
+            try{res.send(chats)}catch(e){}
         })
     }
 })
@@ -96,14 +96,14 @@ app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr){
         const chat = await clientsOpened[req.params?.clientid].client.getChatById(req.params?.chatid)
         await clientsOpened[req.params?.clientid].client.openChat(chat.id.user, chat.name)
-        res.send({chat_name: await clientsOpened[req.params?.clientid].client.getCurrentChatName(), messages: await clientsOpened[req.params?.clientid].client.getAllMessages()})
+        try{res.send({chat_name: await clientsOpened[req.params?.clientid].client.getCurrentChatName(), messages: await clientsOpened[req.params?.clientid].client.getAllMessages()})}catch(e){}
     }else{
         startClient(req.params?.clientid, (qr, id)=>{
-            res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
+            try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
         }, async (id)=>{
             const chat = await clientsOpened[id].client.getChatById(req.params?.chatid)
             await clientsOpened[id].client.openChat(chat.id.user, chat.name)
-            res.send({chat_name: await clientsOpened[id].client.getCurrentChatName(), messages: await clientsOpened[id].client.getAllMessages()})
+            try{res.send({chat_name: await clientsOpened[id].client.getCurrentChatName(), messages: await clientsOpened[id].client.getAllMessages()})}catch(e){}
         })
     }
 })
