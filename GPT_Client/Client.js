@@ -15,16 +15,16 @@ class Client {
     async Learn(examples, count_examples, count_messages) {
     	const instruction = systemInstructionLearn
     		.replace("__examples-count__", count_examples)
-    		.replace("__examples-count__", count_messages)
-    		.replace("__examples-count__", examples)
+    		.replace("__messages-count__", count_messages)
+    		.replace("__examples-chats__", examples)
     	const completion = await openai.chat.completions.create({
 		    messages: [
 		      { 
 		        role: "system", 
-		        content: instruction
+		        content: "Ты должен создавать переписки по примерам и запросу"
 		      }, {
 		        role: "user",
-		        content: "Составь примеры переписок"
+		        content: instruction
 		      }],
 		    ...this.options.GPT_learning
 		  })
