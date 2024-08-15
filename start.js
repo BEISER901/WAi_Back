@@ -84,7 +84,7 @@ app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
         const chat = await clientsOpened[req.params?.clientid].client.getChatById(req.params?.chatid)
-        const msgs = await chat.fetchMessages({limit: 10000})
+        const msgs = await chat.fetchMessages({limit: 1000000})
         try{res.send(msgs)}catch(e){}
     }else{
         try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
@@ -95,27 +95,28 @@ app.get('/:clientid/openai_init', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
         const chats = await clientsOpened[req.params?.clientid].client.getChats()
-        const chat = await clientsOpened[req.params?.clientid].client.getChatById(chats[4].id._serialized)
-        const msgs = await chat.fetchMessages({limit: 10000})
-        let daysMsg = null
         let countExample = 1
-        const gptclient = new GPTClient()
-        const stringMsgs = msgs.map(msg=>{
-            const currentDaysMsg = parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))
-            var example = `${msg.fromMe?"Пользователь 1:": "Пользователь 2:"} ${msg.body}`
-            if(currentDaysMsg != daysMsg){
-                example = `Пример ${countExample}:\n` + example
-                daysMsg = currentDaysMsg
-                countExample++
-            }
-            return example
+        const stringMsgs = chats.map(chat=>{
+            const msgs = await chat.fetchMessages({limit: 10000000})
+            let daysMsg = null
+            const gptclient = new GPTClient()
+            return msgs.map(msg=>{
+                const currentDaysMsg = parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))
+                var example = `${msg.fromMe?"Пользователь 1:": "Пользователь 2:"} ${msg.body}`
+                if(currentDaysMsg != daysMsg){
+                    example = `Пример ${countExample}:\n` + example
+                    daysMsg = currentDaysMsg
+                    countExample++
+                }
+                return example
+            }).join("\n")
         }).join("\n")
-        await gptclient.Learn(
+        const answer = await gptclient.Learn(
             stringMsgs,
             5,
             200
-        ).then(console.log)
-        try{res.send({status: "in_progress"})}catch(e){}
+        )
+        try{res.send({ answer })}catch(e){}
     }else{
         res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
     }
