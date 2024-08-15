@@ -1,13 +1,13 @@
-#!/usr/bin/env -S node --no-warnings
+#!/usr/bin/env -S node --no-warnings --env-file=.env
 
 // ./start.js
 
-const openedClient = {}
-
-const Client = require("./WhatsApp_Client/src/Client.js")
-const qrcode = require('qrcode-terminal')
 
 const clientsOpened = {}
+
+const Client = require("./WhatsApp_Client/src/Client.js")
+const GPTClient = require("./GPT_Client/Client.js")
+const qrcode = require('qrcode-terminal')
 
 const startClient = async (clientId, qrCallback, readyCallback) => {
     const client = new Client()
@@ -41,13 +41,7 @@ const startClient = async (clientId, qrCallback, readyCallback) => {
             },
             client: client 
         }
-        readyCallback(client.id)
-        
-        // chats[index] index is where chat you have get, index - 0 is first chat in your list.
-/*        await client.openChat(chats[0].name)*/
-/*        console.log(await client.getCurrentChatName())
-        console.log((await client.getAllMessages()).length)*/
-        /*client.destroy()*/
+        if(readyCallback)readyCallback(client.id)
     });
 
     await client.initialize();
@@ -78,33 +72,52 @@ app.get('/:clientid', (req, res) => {
 
 app.get('/:clientid/chats', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
-    if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr){
+    if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr && clientsOpened[req.params?.clientid]?.client){
         const chats = await clientsOpened[req.params?.clientid].client.getChats()
-        try{res.send(chats)}catch(e){}
+        res.send(chats)
     }else{
-        startClient(req.params?.clientid, (qr, id)=>{
-            try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
-        }, async (id)=>{
-            const chats = await clientsOpened[id].client.getChats()
-            try{res.send(chats)}catch(e){}
-        })
+        try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
     }
 })
 
 app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
-    if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr){
+    if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
         const chat = await clientsOpened[req.params?.clientid].client.getChatById(req.params?.chatid)
-        await clientsOpened[req.params?.clientid].client.openChat(chat.id.user, chat.name)
-        try{res.send({chat_name: await clientsOpened[req.params?.clientid].client.getCurrentChatName(), messages: await clientsOpened[req.params?.clientid].client.getAllMessages()})}catch(e){}
+        const msgs = await chat.fetchMessages({limit: 10000})
+        try{res.send(msgs)}catch(e){}
     }else{
-        startClient(req.params?.clientid, (qr, id)=>{
-            try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
-        }, async (id)=>{
-            const chat = await clientsOpened[id].client.getChatById(req.params?.chatid)
-            await clientsOpened[id].client.openChat(chat.id.user, chat.name)
-            try{res.send({chat_name: await clientsOpened[id].client.getCurrentChatName(), messages: await clientsOpened[id].client.getAllMessages()})}catch(e){}
-        })
+        try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
+    }
+})
+
+app.get('/:clientid/openai_init', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
+    if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
+        const chats = await clientsOpened[req.params?.clientid].client.getChats()
+        const chat = await clientsOpened[req.params?.clientid].client.getChatById(chats[1].id._serialized)
+        const msgs = await chat.fetchMessages({limit: 10000})
+        let daysMsg = null
+        let countExample = 1
+        const gptclient = new GPTClient()
+        const stringMsgs = msgs.map(msg=>{
+            const currentDaysMsg = parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))
+            var example = `${msg.fromMe?"Пользователь 1:": "Пользователь 2:"} ${msg.body}`
+            if(currentDaysMsg != daysMsg){
+                example = `Пример ${countExample}:\n` + example
+                daysMsg = currentDaysMsg
+                countExample++
+            }
+            return example
+        }).join("\n")
+        await gptclient.Learn(
+            stringMsgs,
+            5,
+            200
+        ).then(console.log)
+        try{res.send({status: "in_progress"})}catch(e){}
+    }else{
+        res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
     }
 })
 
