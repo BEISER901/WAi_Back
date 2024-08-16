@@ -1,13 +1,20 @@
 #!/usr/bin/env -S node --no-warnings --env-file=.env
 
-// ./start.js
+const initHeaders = (res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+}
 
+// ./start.js
 
 const clientsOpened = {}
 
 const Client = require("./WhatsApp_Client/src/Client.js")
 const GPTClient = require("./GPT_Client/Client.js")
 const qrcode = require('qrcode-terminal')
+
+const express = require('express');
+const app = express();
 
 async function delay(ms) {
   // return await for better async stack trace support in case of errors.
@@ -55,42 +62,17 @@ const startClient = async (clientId, qrCallback, readyCallback) => {
     }
 }
 
-const express = require('express');
-const app = express();
-
 app.get('/:clientid', async (req, res) => {
     if(req.params?.clientid === "favicon.ico")return
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
-    if(clientsOpened[req.params?.clientid]){
-        try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
-    }else{        
-        startClient(req.params?.clientid=="auto"?undefined:req.params?.clientid, (qr, client)=>{
-            try{res.send({id: client.id, qr})}catch(e){}
-        }, (client)=>{
-            try{try{res.send({ id: client.id })}catch(e){}}catch(e){}
-        })
-    }
+    res.header
 })
 
-app.get('/:clientid/waitReady', async (req, res) => {
-    if(req.params?.clientid === "favicon.ico")return
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
-    while(true){
-        await delay(1000)
-        if(clientsOpened[req.params?.clientid]?.isReady){
-            try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
-            break
-        }
-    }
-})
-
+// Return all chats 
 
 app.get('/:clientid/chats', async (req, res) => {
-    if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return;
+    initHeaders(res)
+
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr && clientsOpened[req.params?.clientid]?.client){
         const chats = await clientsOpened[req.params?.clientid].client.getChats()
         res.send(chats.map(chat=>({userId: chat.id.user, name: chat.name})))
@@ -99,10 +81,12 @@ app.get('/:clientid/chats', async (req, res) => {
     }
 })
 
+// Return all messages  
+
 app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    initHeaders(res)
+
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
         const chat = await clientsOpened[req.params?.clientid].client.getChatById(req.params?.chatid)
         const msgs = await chat.fetchMessages({limit: 10000})
@@ -112,10 +96,12 @@ app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
     }
 })
 
+// Transferring chats to artificial intelligence 
+
 app.get('/:clientid/openai_init', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    initHeaders(res)
+
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
         const chats = await clientsOpened[req.params?.clientid].client.getChats()
         const chat = await clientsOpened[req.params?.clientid].client.getChatById(chats[4].id._serialized)
@@ -143,5 +129,22 @@ app.get('/:clientid/openai_init', async (req, res) => {
         res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
     }
 })
+
+// Wait for on('ready'... event
+ 
+app.get('/:clientid/waitReady', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico")return
+    initHeaders(res)
+
+    while(true){
+        await delay(1000)
+        if(clientsOpened[req.params?.clientid]?.isReady){
+            try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
+            break
+        }
+    }
+})
+
+// Launch on port 3000 
 
 app.listen(3000)
