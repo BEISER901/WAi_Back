@@ -94,7 +94,7 @@ app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
 app.get('/:clientid/openai_init', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
-        const chats = await clientsOpened[req.params?.clientid].client.getChats()
+        const chats = await clientsOpened[req.params?.clientid].client.getChats().then(chats=>chats.filter(chat=>!req.body.filter.includes(chat.id._serialezetion)))
         let countExample = 1
         const stringMsgs = chats.map(chat=>{
             const msgs = await chat.fetchMessages({limit: 10000000})
