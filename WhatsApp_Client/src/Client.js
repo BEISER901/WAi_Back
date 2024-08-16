@@ -342,7 +342,7 @@ class Client extends EventEmitter {
             referer: 'https://whatsapp.com/'
         });
 
-        await this.inject();
+        try{await this.inject()}catch(e){};
 
         this.pupPage.on('framenavigated', async (frame) => {
             if(frame.url().includes('post_logout=1') || this.lastLoggedOut) {
@@ -798,8 +798,11 @@ class Client extends EventEmitter {
      * Closes the client
      */
     async destroy() {
-        await this.pupBrowser.close();
-        await this.authStrategy.destroy();
+        try{            
+            await this.pupBrowser.close();
+            await this.authStrategy.destroy();
+        }catch(e){}
+        Util.removeClientFolderById(this.id)
     }
 
     /**
