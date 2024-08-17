@@ -64,7 +64,17 @@ const startClient = async (clientId, qrCallback, readyCallback) => {
 
 app.get('/:clientid', async (req, res) => {
     if(req.params?.clientid === "favicon.ico")return
-    res.header
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    if(clientsOpened[req.params?.clientid]){
+        try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
+    }else{        
+        startClient(req.params?.clientid=="auto"?undefined:req.params?.clientid, (qr, client)=>{
+            try{res.send({id: client.id, qr})}catch(e){}
+        }, (client)=>{
+            try{try{res.send({ id: client.id })}catch(e){}}catch(e){}
+        })
+    }
 })
 
 // Return all chats 
@@ -136,12 +146,23 @@ app.get('/:clientid/waitReady', async (req, res) => {
     if(req.params?.clientid === "favicon.ico")return
     initHeaders(res)
 
-    while(true){
-        await delay(1000)
-        if(clientsOpened[req.params?.clientid]?.isReady){
+    if(clientsOpened[req.params?.clientid]?.client){
+        clientsOpened[req.params?.clientid]?.client.on('ready', async () => {
             try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
-            break
-        }
+        })
+    }
+})
+
+// Wait for on('qr'... event
+ 
+app.get('/:clientid/waitQR', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico")return
+    initHeaders(res)
+
+    if(clientsOpened[req.params?.clientid]?.client){
+        clientsOpened[req.params?.clientid]?.client.on('qr', async () => {
+            try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
+        })
     }
 })
 
