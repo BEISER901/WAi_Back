@@ -278,6 +278,7 @@ class Client extends EventEmitter {
      */
     async initialize() { 
         this.id = this.id??Util.generateRandomIdForFolder();
+        this.emit(Events.GENERATE_ID, this.id);
         const removeFolder = () => Util.removeClientFolderById(this.id)
         process.on("exit", removeFolder);
         let 
@@ -802,7 +803,14 @@ class Client extends EventEmitter {
             await this.pupBrowser.close();
             await this.authStrategy.destroy();
         }catch(e){}
+    }
+
+    async removeClientFolder () {
         Util.removeClientFolderById(this.id)
+    }
+
+    async removeClientFolderById (id) {
+        Util.removeClientFolderById(id)
     }
 
     /**

@@ -21,35 +21,73 @@ async function delay(ms) {
   return await new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const startClient = async (clientId, qrCallback, readyCallback) => {
+const startClient = async (clientId, onStatusChange) => {
     const client = new Client()
 
     // If clientId undefined or null will create new clientId.
 
     client.id = clientId
 
-    client.on('qr', (qr) => {
+    client.on('launch', () => {
         // Generate and scan this code with your phone
-        qrcode.generate(qr, {small: true})
-        if(qrCallback)qrCallback(qr, client)
         clientsOpened[client.id]={
             info: {
                 id: client.id,
+                status: "launch"
+            },
+            client: client
+        }
+        if(onStatusChange)onStatusChange(client.id, "launch")
+    })
+
+    client.on('loading_screen', () => {
+        // Generate and scan this code with your phone
+        clientsOpened[client.id]={
+            info: {
+                id: client.id,
+                status: "loading"
+            },
+            client: client 
+        }
+        if(onStatusChange)onStatusChange(client.id, "loading_screen")
+    })
+
+    client.on('generate_id', () => {
+        // Generate and scan this code with your phone
+        clientsOpened[client.id]={
+            info: {
+                id: client.id,
+                status: "generate_id"
+            },
+            client: client 
+        }
+        if(onStatusChange)onStatusChange(client.id, "generate_id")
+    })
+
+    client.on('qr', (qr) => {
+        // Generate and scan this code with your phone
+        qrcode.generate(qr, {small: true})
+        clientsOpened[client.id]={
+            info: {
+                id: client.id,
+                status: "qr",
                 qr: qr 
             },
             client: client 
         }
+        if(onStatusChange)onStatusChange(client.id, "qr")
     })
 
     client.on('ready', async () => {
         clientsOpened[client.id]={
             info: {
-                id: client.id
+                id: client.id,
+                status: "ready"
             },
             client: client,
             isReady: true
         }
-        if(readyCallback)readyCallback(client)
+        if(onStatusChange)onStatusChange(client.id, "ready")
     })
 
     await client.initialize();
@@ -68,11 +106,9 @@ app.get('/:clientid', async (req, res) => {
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     if(clientsOpened[req.params?.clientid]){
         try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
-    }else{        
-        startClient(req.params?.clientid=="auto"?undefined:req.params?.clientid, (qr, client)=>{
-            try{res.send({id: client.id, qr})}catch(e){}
-        }, (client)=>{
-            try{try{res.send({ id: client.id })}catch(e){}}catch(e){}
+    }else{   
+        startClient(req.params?.clientid=="auto"?undefined:req.params?.clientid, (clientid)=>{
+            try{res.send(clientsOpened[clientid].info)}catch(e){}
         })
     }
 })
@@ -85,7 +121,18 @@ app.get('/:clientid/chats', async (req, res) => {
 
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr && clientsOpened[req.params?.clientid]?.client){
         const chats = await clientsOpened[req.params?.clientid].client.getChats()
-        res.send(chats.map(chat=>({userId: chat.id.user, name: chat.name})))
+        try{res.send(chats.map(chat=>({userId: chat.id.user, name: chat.name})))}catch(e){}
+    }else{
+        try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
+    }
+})
+app.get('/:clientid/state', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return;
+    initHeaders(res)
+
+    if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr && clientsOpened[req.params?.clientid]?.client){
+        const state = await clientsOpened[req.params?.clientid].client.getState()
+        try{res.send(state)}catch(e){}
     }else{
         try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
     }
@@ -106,62 +153,77 @@ app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
     }
 })
 
-// Transferring chats to artificial intelligence 
-
-app.get('/:clientid/openai_init', async (req, res) => {
+app.get('/:clientid/info', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
     initHeaders(res)
 
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
-        const chats = await clientsOpened[req.params?.clientid].client.getChats()
-        const chat = await clientsOpened[req.params?.clientid].client.getChatById(chats[4].id._serialized)
-        const msgs = await chat.fetchMessages({limit: 10000})
-        let daysMsg = null
-        let countExample = 1
-        const gptclient = new GPTClient()
-        const stringMsgs = msgs.map(msg=>{
-            const currentDaysMsg = parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))
-            var example = `${msg.fromMe?"Пользователь 1:": "Пользователь 2:"} ${msg.body}`
-            if(currentDaysMsg != daysMsg){
-                example = `Пример ${countExample}:\n` + example
-                daysMsg = currentDaysMsg
-                countExample++
-            }
-            return example
-        }).join("\n")
-        await gptclient.Learn(
-            stringMsgs,
-            5,
-            200
-        ).then(console.log)
-        try{res.send({status: "in_progress"})}catch(e){}
+        try{res.send(clientsOpened[req.params?.clientid].client.info)}catch(e){}
     }else{
-        res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
+        try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
     }
 })
+
+/*app.get('/:clientid', (req, res, next) => {
+    initHeaders(res)
+    if(clientsOpened[req.params?.clientid]){
+        clientsOpened[req.params?.clientid].client.destroy()
+        clientsOpened[req.params?.clientid].client.removeClientFolder()
+        console.log("Удален клиент с индетификатором: " + req.params?.clientid)
+    }else{
+        Client.removeClientFolderById(req.params?.clientid)
+        console.log("Удален клиент с индетификатором: " + req.params?.clientid)
+    }
+})
+*/
+// Transferring chats to artificial intelligence 
+
+// app.get('/:clientid/init', async (req, res) => {
+//     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
+//     initHeaders(res)
+
+//     const body = (()=>{try{JSON.parse(req.body)}catch(e){}})
+
+//     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
+//         const chatsMsg = (await clientsOpened[req.params?.clientid].client.getChats()).filter(chat=>!body.filter.includes(chats.id._serialized)).map(chat=>{
+//             const msgs = await chat.fetchMessages({limit: 10000})
+//             return msgs.map(msg=>({ content: msg.body, timestamp: msg.timestamp, fromMe: msg.fromMe })
+// /*            let daysMsg = null
+//             let countExample = 1
+//             const gptclient = new GPTClient()
+//             const stringMsgs = msgs.map(msg=>{
+//                 const currentDaysMsg = parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))
+//                 var example = `${msg.fromMe?"Пользователь 1:": "Пользователь 2:"} ${msg.body}`
+//                 if(currentDaysMsg != daysMsg){
+//                     example = `Пример ${countExample}:\n` + example
+//                     daysMsg = currentDaysMsg
+//                     countExample++
+//                 }
+//                 return example
+//             }).join("\n")
+//             await gptclient.Learn(
+//                 stringMsgs,
+//                 5,
+//                 200
+//             ).then(console.log)
+//             try{res.send({status: "in_progress"})}catch(e){}*/
+//         })
+//     }else{
+//         res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
+//     }
+// })
 
 // Wait for on('ready'... event
  
-app.get('/:clientid/waitReady', async (req, res) => {
+app.get('/:clientid/waitForStatusChange', async (req, res) => {
     if(req.params?.clientid === "favicon.ico")return
     initHeaders(res)
 
     if(clientsOpened[req.params?.clientid]?.client){
-        clientsOpened[req.params?.clientid]?.client.on('ready', async () => {
-            try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
-        })
-    }
-})
-
-// Wait for on('qr'... event
- 
-app.get('/:clientid/waitQR', async (req, res) => {
-    if(req.params?.clientid === "favicon.ico")return
-    initHeaders(res)
-
-    if(clientsOpened[req.params?.clientid]?.client){
-        clientsOpened[req.params?.clientid]?.client.on('qr', async () => {
-            try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
+        ["ready", "loading_screen", "launch", "qr", "generate_id"].map(event=>{
+            clientsOpened[req.params?.clientid]?.client.on(event, (qr) => {
+                try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
+            })
         })
     }
 })

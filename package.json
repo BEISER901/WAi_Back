@@ -19,6 +19,7 @@
     "openai": "^4.56.0",
     "puppeteer": "^18.2.1",
     "qrcode-terminal": "^0.12.0",
+    "supabase": "^1.190.0",
     "xvfb": "^0.4.0"
   }
 }
