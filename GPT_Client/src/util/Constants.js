@@ -1,10 +1,5 @@
 exports.DefaultOptions = {
     GPT_learning: {
-        model: "gpt-4",
+        model: "chatgpt-4o-latest",
     },
-}
-
-exports.Strategy = {
-    "LEARN": "learn",
-    "ANSWER": "answer"
 }

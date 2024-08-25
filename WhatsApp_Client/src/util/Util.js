@@ -193,6 +193,9 @@ class Util {
             }
         }})() 
     }
+    static getAllClientsFoldersId(){
+        return (()=>{try{return fs.readdirSync("./.puppeteer_cache/")}catch(e){}})()??[]
+    }
     static removeClientFolderById(id){
         try{fs.rmdirSync("./.puppeteer_cache/" + id, { recursive: true, force: true })}catch(e){}
     }

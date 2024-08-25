@@ -3,18 +3,25 @@
 const initHeaders = (res) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
+    res.header("Access-Control-Allow-Methods", "*");
 }
 
 // ./start.js
 
 const clientsOpened = {}
 
+const WAUtil = require('./WhatsApp_Client/src/util/Util');
 const Client = require("./WhatsApp_Client/src/Client.js")
 const GPTClient = require("./GPT_Client/Client.js")
 const qrcode = require('qrcode-terminal')
+var bodyparser = require('body-parser')
+const { createClient } = require('@supabase/supabase-js')
 
 const express = require('express');
 const app = express();
+const cors = require('cors');
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
 async function delay(ms) {
   // return await for better async stack trace support in case of errors.
@@ -35,7 +42,7 @@ const startClient = async (clientId, onStatusChange) => {
                 id: client.id,
                 status: "launch"
             },
-            client: client
+            client: client,
         }
         if(onStatusChange)onStatusChange(client.id, "launch")
     })
@@ -94,11 +101,43 @@ const startClient = async (clientId, onStatusChange) => {
 
 
     if(clientId){
-        console.log("User configuration with indicator: " + clientId)
+        console.log("Running user with identifier: " + clientId)
     }else{
         console.log("A new client with the identifier: " + client.id)
     }
+    client.on('message', async (msg) => {
+        const { data } = await supabase.from("AI_Examples").select("example_for_ai, dont_follow_chats").eq("clientid", client.id);
+        const clientInfo = (await supabase.from("Clients").select().eq("clientid", client.id)).data[0]
+        if(clientInfo.active)if(!(data?.[0]?.dont_follow_chats??[]).includes(msg.from)){
+            console.log("message")
+            const gptclient = new GPTClient()
+
+            const answer = await gptclient.Answer(
+                client.info.pushname,
+                client.info.pushname,
+                msg.body,
+                (()=>{
+                    const date = new Date()
+                    return(`${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`)
+                })(),
+                data[0].example_for_ai,
+            )
+            client.sendMessage(msg.from, answer)
+        }
+    })
 }
+
+const startAllClients = () => {
+    WAUtil.getAllClientsFoldersId().map(id=>{
+        startClient(id)
+    })
+}
+
+startAllClients()
+
+app.use(cors());
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
 app.get('/:clientid', async (req, res) => {
     if(req.params?.clientid === "favicon.ico")return
@@ -118,10 +157,9 @@ app.get('/:clientid', async (req, res) => {
 app.get('/:clientid/chats', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return;
     initHeaders(res)
-
-    if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr && clientsOpened[req.params?.clientid]?.client){
+    if(clientsOpened[req.params?.clientid]?.client && clientsOpened[req.params?.clientid]?.info.status == "ready"){
         const chats = await clientsOpened[req.params?.clientid].client.getChats()
-        try{res.send(chats.map(chat=>({userId: chat.id.user, name: chat.name})))}catch(e){}
+        try{res.send(chats.map(chat=>({userId: chat.id.user, name: chat.name, serialized: chat.id._serialized})))}catch(e){}
     }else{
         try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
     }
@@ -146,7 +184,7 @@ app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
 
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
         const chat = await clientsOpened[req.params?.clientid].client.getChatById(req.params?.chatid)
-        const msgs = await chat.fetchMessages({limit: 10000})
+        const msgs = await chat.fetchMessages({limit: 1000000})
         try{res.send(msgs)}catch(e){}
     }else{
         try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
@@ -164,54 +202,42 @@ app.get('/:clientid/info', async (req, res) => {
     }
 })
 
-/*app.get('/:clientid', (req, res, next) => {
+app.post('/:clientid/init', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
     initHeaders(res)
-    if(clientsOpened[req.params?.clientid]){
-        clientsOpened[req.params?.clientid].client.destroy()
-        clientsOpened[req.params?.clientid].client.removeClientFolder()
-        console.log("Удален клиент с индетификатором: " + req.params?.clientid)
+    clientsOpened[req.params?.clientid].info.status = "chat_processing"
+    if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
+        const msgs = await Promise.all((await clientsOpened[req.params?.clientid].client.getChats()).filter(chat=>!(req?.body?.filter??[]).includes(chat.id._serialized)).map(async chat=>{
+            const msgs = await chat.fetchMessages({limit: 1000000})
+            return msgs.map(msg=>({ chatName: chat.name, content: msg.body, timestamp: msg.timestamp, fromMe: msg.fromMe }))
+/*            
+            const gptclient = new GPTClient()
+            await gptclient.Learn(
+                stringMsgs,
+                5,
+                200
+            ).then(console.log)
+            try{res.send({status: "in_progress"})}catch(e){}*/
+        })).then(arr=>arr.flat())
+        let daysMsg = null
+        let countExample = 1
+        const stringMsgs = msgs.map(msg=>{
+            const currentDaysMsg = parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))
+            var example = `${msg.fromMe?"Ты:": "Пользователь:"} ${msg.content}`
+            if(currentDaysMsg != daysMsg){
+                example = `Переписка с пользвателем ${msg.chatName}:\n` + example
+                daysMsg = currentDaysMsg
+                countExample++
+            }
+            return example
+        }).join("\n")
+        const {error} = await supabase.from("AI_Examples").upsert({clientid: req.params?.clientid, example_for_ai: stringMsgs})
+        console.log(error)
+        try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
     }else{
-        Client.removeClientFolderById(req.params?.clientid)
-        console.log("Удален клиент с индетификатором: " + req.params?.clientid)
+        res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
     }
 })
-*/
-// Transferring chats to artificial intelligence 
-
-// app.get('/:clientid/init', async (req, res) => {
-//     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
-//     initHeaders(res)
-
-//     const body = (()=>{try{JSON.parse(req.body)}catch(e){}})
-
-//     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
-//         const chatsMsg = (await clientsOpened[req.params?.clientid].client.getChats()).filter(chat=>!body.filter.includes(chats.id._serialized)).map(chat=>{
-//             const msgs = await chat.fetchMessages({limit: 10000})
-//             return msgs.map(msg=>({ content: msg.body, timestamp: msg.timestamp, fromMe: msg.fromMe })
-// /*            let daysMsg = null
-//             let countExample = 1
-//             const gptclient = new GPTClient()
-//             const stringMsgs = msgs.map(msg=>{
-//                 const currentDaysMsg = parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))
-//                 var example = `${msg.fromMe?"Пользователь 1:": "Пользователь 2:"} ${msg.body}`
-//                 if(currentDaysMsg != daysMsg){
-//                     example = `Пример ${countExample}:\n` + example
-//                     daysMsg = currentDaysMsg
-//                     countExample++
-//                 }
-//                 return example
-//             }).join("\n")
-//             await gptclient.Learn(
-//                 stringMsgs,
-//                 5,
-//                 200
-//             ).then(console.log)
-//             try{res.send({status: "in_progress"})}catch(e){}*/
-//         })
-//     }else{
-//         res.send(`Клиент ${req.params?.clientid} не аутефицирован`)
-//     }
-// })
 
 // Wait for on('ready'... event
  

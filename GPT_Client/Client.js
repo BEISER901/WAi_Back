@@ -1,6 +1,7 @@
 'use strict'
 
-const systemInstructionLearn = require("fs").readFileSync(__dirname + "/.config/system_instruction_learning", "utf8") 
+const patternAnswer = require("fs").readFileSync(__dirname + "/.config/pattern_answer", "utf8") 
+const patternSystem = require("fs").readFileSync(__dirname + "/.config/pattern_system", "utf8") 
 
 const { DefaultOptions } = require('./src/util/Constants')
 const OpenAI = require("openai")
@@ -12,19 +13,22 @@ class Client {
         this.options = DefaultOptions;
     	this.chatCompletation = openai.chat.completions;
     }
-    async Learn(examples, count_examples, count_messages) {
-    	const instruction = systemInstructionLearn
-    		.replace("__examples-count__", count_examples)
-    		.replace("__messages-count__", count_messages)
-    		.replace("__examples-chats__", examples)
+    async Answer(yourename, username, message, time, examples) {
+    	const patternanswer = patternAnswer
+    		.replace("__your_name__", yourename)
+    		.replace("__user_name__", username)
+    		.replace("__message__", message)
+    		.replace("__time__", time)
+    		.replace("__examples__", examples)
+    	const patternsystem = patternSystem
     	const completion = await openai.chat.completions.create({
 		    messages: [
 		      { 
 		        role: "system", 
-		        content: "Ты должен создавать переписки по примерам и запросу"
+		        content: patternsystem
 		      }, {
 		        role: "user",
-		        content: instruction
+		        content: patternanswer.substring(0, 300000)
 		      }],
 		    ...this.options.GPT_learning
 		  })
