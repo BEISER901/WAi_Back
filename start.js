@@ -44,6 +44,7 @@ const startClient = async (clientId, onStatusChange) => {
             },
             client: client,
         }
+        console.log(client.id)
         if(onStatusChange)onStatusChange(client.id, "launch")
     })
 
@@ -107,35 +108,47 @@ const startClient = async (clientId, onStatusChange) => {
     }
     client.on('message', async (reqmsg) => {
         const { data } = await supabase.from("AI_Examples").select("example_for_ai, dont_follow_chats, additionally").eq("clientid", client.id);
+        clientsOpened[client.id]={
+            ...clientsOpened[client.id],
+            lastMessage: {
+                ...(clientsOpened[client.id].lastMessage??{}),
+                [reqmsg.from]: reqmsg.body
+            }
+        }
         const clientInfo = (await supabase.from("Clients").select().eq("clientid", client.id)).data[0]
         if(clientInfo.active)if(!(data?.[0]?.dont_follow_chats??[]).includes(reqmsg.from)){
-            console.log("message")
+            const chat = await client.getChatById(reqmsg.from)
+            await chat.sendStateTyping()
+            const chat_msgs = await chat.fetchMessages({limit: 1000000})
             const gptclient = new GPTClient()
 
             const answer = await gptclient.Answer(
                 client.info.pushname,
                 client.info.pushname,
                 reqmsg.body,
-                (()=>{
-                    const date = new Date()
-                    return(`${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`)
-                })(),
+                new Date(),
                 data[0].example_for_ai,
-                data[0].additionally
+                data[0].additionally,
+                chat_msgs.map(msg=>({content: msg.body, fromMe: msg.fromMe, timestamp: msg.timestamp}))
             )
             const msgs = answer.split("//newmessage// ")
-            for(const index in msgs){       
+            for(const index in msgs){  
+                if(clientsOpened[client.id]?.lastMessage?.[reqmsg.from] != reqmsg.body){
+                    console.log("break")
+                    break
+                }     
                 // console.log(msgs)         
                 var msg = msgs?.[index]??""
                 if(msg!=""){
                     if(!msg.includes("__url-")){
-                        await delay((msg?.length??0)*100)
+                        await delay((msg?.length??0)*150)
                     }else{
                         msg = msg.replace("__url-", "").replace("__url", "")
                     }
-                    client.sendMessage(reqmsg.from, msg);
+                    await client.sendMessage(reqmsg.from, msg);
                 }
             }
+            await chat.clearState()
         }
     })
 }
@@ -247,7 +260,7 @@ app.post('/:clientid/init', async (req, res) => {
             const msgs = await chat.fetchMessages({limit: 1000000})
             return msgs.map(msg=>({ chatName: chat.name, content: msg.body, timestamp: msg.timestamp, fromMe: msg.fromMe }))
         })).then(arr=>arr.flat())
-        const {error} = await supabase.from("AI_Examples").upsert({clientid: req.params?.clientid, example_for_ai: stringMsgs})
+        const {error} = await supabase.from("AI_Examples").upsert({clientid: req.params?.clientid, example_for_ai: msgs})
         console.log(error)
         try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
     }else{

@@ -277,8 +277,8 @@ class Client extends EventEmitter {
      * Sets up events and requirements, kicks off authentication request
      */
     async initialize() { 
-/*        this.id = this.id??Util.generateRandomIdForFolder();
-        this.emit(Events.GENERATE_ID, this.id);
+        this.id = this.id??Util.generateRandomIdForFolder();
+/*        this.emit(Events.GENERATE_ID, this.id);
         const removeFolder = () => Util.removeClientFolderById(this.id)
         process.on("exit", removeFolder);*/
         let 
