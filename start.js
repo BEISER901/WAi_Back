@@ -105,24 +105,37 @@ const startClient = async (clientId, onStatusChange) => {
     }else{
         console.log("A new client with the identifier: " + client.id)
     }
-    client.on('message', async (msg) => {
-        const { data } = await supabase.from("AI_Examples").select("example_for_ai, dont_follow_chats").eq("clientid", client.id);
+    client.on('message', async (reqmsg) => {
+        const { data } = await supabase.from("AI_Examples").select("example_for_ai, dont_follow_chats, additionally").eq("clientid", client.id);
         const clientInfo = (await supabase.from("Clients").select().eq("clientid", client.id)).data[0]
-        if(clientInfo.active)if(!(data?.[0]?.dont_follow_chats??[]).includes(msg.from)){
+        if(clientInfo.active)if(!(data?.[0]?.dont_follow_chats??[]).includes(reqmsg.from)){
             console.log("message")
             const gptclient = new GPTClient()
 
             const answer = await gptclient.Answer(
                 client.info.pushname,
                 client.info.pushname,
-                msg.body,
+                reqmsg.body,
                 (()=>{
                     const date = new Date()
                     return(`${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`)
                 })(),
                 data[0].example_for_ai,
+                data[0].additionally
             )
-            client.sendMessage(msg.from, answer)
+            const msgs = answer.split("//newmessage// ")
+            for(const index in msgs){       
+                // console.log(msgs)         
+                var msg = msgs?.[index]??""
+                if(msg!=""){
+                    if(!msg.includes("__url-")){
+                        await delay((msg?.length??0)*100)
+                    }else{
+                        msg = msg.replace("__url-", "").replace("__url", "")
+                    }
+                    client.sendMessage(reqmsg.from, msg);
+                }
+            }
         }
     })
 }
@@ -158,12 +171,37 @@ app.get('/:clientid/chats', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return;
     initHeaders(res)
     if(clientsOpened[req.params?.clientid]?.client && clientsOpened[req.params?.clientid]?.info.status == "ready"){
-        const chats = await clientsOpened[req.params?.clientid].client.getChats()
+        const chats = (await clientsOpened[req.params?.clientid].client.getChats()).filter(chat=>!(req?.body?.filter??[]).includes(chat.id._serialized))
         try{res.send(chats.map(chat=>({userId: chat.id.user, name: chat.name, serialized: chat.id._serialized})))}catch(e){}
     }else{
         try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
     }
 })
+
+app.post('/:clientid/chats', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return;
+    initHeaders(res)
+    if(clientsOpened[req.params?.clientid]?.client && clientsOpened[req.params?.clientid]?.info.status == "ready"){
+        const chats = (await clientsOpened[req.params?.clientid].client.getChats()).filter(chat=>!(req?.body?.filter??[]).includes(chat.id._serialized))
+        try{res.send(chats.map(chat=>({userId: chat.id.user, name: chat.name, serialized: chat.id._serialized})))}catch(e){}
+    }else{
+        try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
+    }
+})
+app.get('/:clientid/pic/:contactid', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return;
+    initHeaders(res)
+    if(clientsOpened[req.params?.clientid]?.client && clientsOpened[req.params?.clientid]?.info.status == "ready"){
+        try{
+            res.send({ url: (await clientsOpened[req.params?.clientid]?.client.getProfilePicUrl(req.params?.contactid)) })
+        }catch(e){
+            res.send({ url: "" })
+        }
+    }else{
+        try{res.send(`Клиент ${req.params?.clientid} не аутефицирован`)}catch(e){}
+    }
+})
+
 app.get('/:clientid/state', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return;
     initHeaders(res)
@@ -181,7 +219,6 @@ app.get('/:clientid/state', async (req, res) => {
 app.get('/:clientid/chats/:chatid/messages', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
     initHeaders(res)
-
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
         const chat = await clientsOpened[req.params?.clientid].client.getChatById(req.params?.chatid)
         const msgs = await chat.fetchMessages({limit: 1000000})
@@ -205,32 +242,11 @@ app.get('/:clientid/info', async (req, res) => {
 app.post('/:clientid/init', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return
     initHeaders(res)
-    clientsOpened[req.params?.clientid].info.status = "chat_processing"
     if(clientsOpened[req.params?.clientid] && !clientsOpened[req.params?.clientid]?.qr  && clientsOpened[req.params?.clientid]?.client){
         const msgs = await Promise.all((await clientsOpened[req.params?.clientid].client.getChats()).filter(chat=>!(req?.body?.filter??[]).includes(chat.id._serialized)).map(async chat=>{
             const msgs = await chat.fetchMessages({limit: 1000000})
             return msgs.map(msg=>({ chatName: chat.name, content: msg.body, timestamp: msg.timestamp, fromMe: msg.fromMe }))
-/*            
-            const gptclient = new GPTClient()
-            await gptclient.Learn(
-                stringMsgs,
-                5,
-                200
-            ).then(console.log)
-            try{res.send({status: "in_progress"})}catch(e){}*/
         })).then(arr=>arr.flat())
-        let daysMsg = null
-        let countExample = 1
-        const stringMsgs = msgs.map(msg=>{
-            const currentDaysMsg = parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))
-            var example = `${msg.fromMe?"Ты:": "Пользователь:"} ${msg.content}`
-            if(currentDaysMsg != daysMsg){
-                example = `Переписка с пользвателем ${msg.chatName}:\n` + example
-                daysMsg = currentDaysMsg
-                countExample++
-            }
-            return example
-        }).join("\n")
         const {error} = await supabase.from("AI_Examples").upsert({clientid: req.params?.clientid, example_for_ai: stringMsgs})
         console.log(error)
         try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
