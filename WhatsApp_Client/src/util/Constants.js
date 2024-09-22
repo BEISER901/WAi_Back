@@ -15,7 +15,7 @@ exports.DefaultOptions = {
     qrMaxRetries: 0,
     takeoverOnConflict: false,
     takeoverTimeoutMs: 0,
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.67 Safari/537.36',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
     ffmpegPath: 'ffmpeg',
     bypassCSP: false,
     proxyAuthentication: undefined
@@ -60,7 +60,12 @@ exports.Events = {
     GROUP_MEMBERSHIP_REQUEST: 'group_membership_request',
     GROUP_UPDATE: 'group_update',
     QR_RECEIVED: 'qr',
+
+    RECENT_MSG_SYNCED: 'recent_msg_synced',
+    INITIAL_LOAD_READY: 'initial_load_ready',
+    SET_SOCKET_STATE: 'set_socket_state',
     LOADING_SCREEN: 'loading_screen',
+
     GENERATE_ID: 'generate_id',
     DISCONNECTED: 'disconnected',
     STATE_CHANGED: 'change_state',
@@ -68,7 +73,8 @@ exports.Events = {
     INCOMING_CALL: 'call',
     REMOTE_SESSION_SAVED: 'remote_session_saved',
     VOTE_UPDATE: 'vote_update',
-    BROWSER_LAUNCH: 'launch'
+    BROWSER_LAUNCH: 'launch',
+    STATUS_UPDATE: 'status_update'
 };
 
 /**

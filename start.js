@@ -42,9 +42,8 @@ const startClient = async (clientId, onStatusChange) => {
                 id: client.id,
                 status: "launch"
             },
-            client: client,
+            client: client
         }
-        console.log(client.id)
         if(onStatusChange)onStatusChange(client.id, "launch")
     })
 
@@ -96,16 +95,24 @@ const startClient = async (clientId, onStatusChange) => {
             isReady: true
         }
         if(onStatusChange)onStatusChange(client.id, "ready")
+        if(client.statusInfo.recentMsgsSynced){
+            const gptclient = new GPTClient()
+            await gptclient.startTraning(client, supabase)
+        }
+    })
+    client.on("recent_msg_synced", async ()=>{
+        const gptclient = new GPTClient()
+        await gptclient.startTraning(client, supabase)
     })
 
     await client.initialize();
-
 
     if(clientId){
         console.log("Running user with identifier: " + clientId)
     }else{
         console.log("A new client with the identifier: " + client.id)
     }
+
     client.on('message', async (reqmsg) => {
         const { data } = await supabase.from("AI_Examples").select("example_for_ai, dont_follow_chats, additionally").eq("clientid", client.id);
         clientsOpened[client.id]={
@@ -116,11 +123,11 @@ const startClient = async (clientId, onStatusChange) => {
             }
         }
         const clientInfo = (await supabase.from("Clients").select().eq("clientid", client.id)).data[0]
-        if(clientInfo.active)if(!(data?.[0]?.dont_follow_chats??[]).includes(reqmsg.from)){
+        if(clientInfo.active)if(/*!(data?.[0]?.dont_follow_chats??[]).includes(reqmsg.from)*/ reqmsg.from == "77056039304@c.us"){
             const chat = await client.getChatById(reqmsg.from)
             await chat.sendStateTyping()
-            const chat_msgs = await chat.fetchMessages({limit: 1000000})
             const gptclient = new GPTClient()
+            const chat_msgs = await chat.fetchMessages({limit: 1000000})
 
             const answer = await gptclient.Answer(
                 client.info.pushname,
@@ -131,7 +138,7 @@ const startClient = async (clientId, onStatusChange) => {
                 data[0].additionally,
                 chat_msgs.map(msg=>({content: msg.body, fromMe: msg.fromMe, timestamp: msg.timestamp}))
             )
-            const msgs = answer.split("//newmessage// ")
+            const msgs = answer.split("//newmessage//").filter(msg=>msg!="")
             for(const index in msgs){  
                 if(clientsOpened[client.id]?.lastMessage?.[reqmsg.from] != reqmsg.body){
                     console.log("break")
@@ -272,14 +279,66 @@ app.post('/:clientid/init', async (req, res) => {
  
 app.get('/:clientid/waitForStatusChange', async (req, res) => {
     if(req.params?.clientid === "favicon.ico")return
+    clientsOpened[req.params?.clientid]?.client.emit('connect', "waitForStatusChange")
+    clientsOpened[req.params?.clientid].waitForDestroy = -1;
+    req.once('aborted', ()=> {
+        console.log("aborted")
+        clientsOpened[req.params?.clientid].waitForDestroy = 5;
+        clientsOpened[req.params?.clientid]?.client.emit('aborted', "waitForStatusChange");
+    })
+    initHeaders(res)
+    if(clientsOpened[req.params?.clientid]?.client){
+        const eventFunc = (client) => {
+            console.log(123)
+            try{res.send(client.statusInfo)}catch(e){}
+        }
+        clientsOpened[req.params?.clientid]?.client.once('status_update', eventFunc)
+        req.once('aborted', ()=> {
+            clientsOpened[req.params?.clientid]?.client.removeListener('status_update', eventFunc)
+        })
+    }
+})
+app.get('/:clientid/status', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico")return
+    initHeaders(res)
+    if(clientsOpened[req.params?.clientid]?.client){
+        try{res.send(clientsOpened[req.params?.clientid]?.client.statusInfo)}catch(e){}
+    }
+})
+
+app.get('/:clientid/searchForSuitableChats', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico")return
     initHeaders(res)
 
     if(clientsOpened[req.params?.clientid]?.client){
-        ["ready", "loading_screen", "launch", "qr", "generate_id"].map(event=>{
-            clientsOpened[req.params?.clientid]?.client.on(event, (qr) => {
-                try{res.send(clientsOpened[req.params?.clientid].info)}catch(e){}
-            })
-        })
+        const gptclient = new GPTClient()
+        console.log(await gptclient.searchForSuitableChats(clientsOpened[req.params?.clientid]?.client))
+//         const gptclient = new GPTClient()
+//         const chats = await gptclient.searchForSuitableChats(clientsOpened[req.params?.clientid]?.client)
+// /*        console.log(chats)*/
+//         try{res.send(chats)}catch(e){}
+    }
+})
+app.delete('/:clientid', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico")return
+    initHeaders(res)
+    if(clientsOpened[req.params?.clientid]?.client){
+        await clientsOpened[req.params?.clientid]?.client.logout()
+        await clientsOpened[req.params?.clientid]?.client.removeClientFolder()
+        console.log("delete client: " + req.params?.clientid)
+    }else{
+        try{res.send("client not found")}catch(e){}
+    }
+})
+// post
+app.post('/:clientid/generateAdditionally', async (req, res) => {
+    if(req.params?.clientid === "favicon.ico")return
+    initHeaders(res)
+
+    if(clientsOpened[req.params?.clientid]?.client){
+        const gptclient = new GPTClient()
+        const additionally = await gptclient.generateAdditionally(150, 10, clientsOpened[req.params?.clientid]?.client, req?.body.arg, supabase)
+        try{res.send(`${additionally}`)}catch(e){}
     }
 })
 

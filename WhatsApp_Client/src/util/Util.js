@@ -11,7 +11,7 @@ const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /**
  * Utility methods
  */
-const randomId = function(length = 6) {
+const randomId = function(length = 60) {
   return Math.random().toString(36).substring(2, length+2);
 }
 class Util {
@@ -187,7 +187,7 @@ class Util {
     static generateRandomIdForFolder(){
         const foldersNames = (()=>{try{return fs.readdirSync("./.puppeteer_cache/").filter(file=>fs.statSync("./.puppeteer_cache/"+file).isDirectory())}catch(e){return ([])}})()
         return (()=>{while(true){
-            const id = randomId(20)
+            const id = randomId(60)
             if(!foldersNames.some(folderId=>folderId===id)){
                 return id
             }

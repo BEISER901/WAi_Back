@@ -86,6 +86,13 @@ class Client extends EventEmitter {
         this.currentIndexHtml = null;
         this.lastLoggedOut = false;
 
+        this.statusInfo = {
+            recentMsgsSynced: false,
+            clientProgressStatus: "launch",
+            qr: false,
+            socet_state: null
+        }
+
         this.id = null
 
         Util.setFfmpegPath(this.options.ffmpegPath);
@@ -189,6 +196,14 @@ class Client extends EventEmitter {
                 }
             });
 
+            await this.pupPage.exposeFunction('onAppStateRecentChatHystorySyncedEvent', async (state)=>{
+                this.emit(Events.RECENT_MSG_SYNCED, state)
+            })            
+
+            await this.pupPage.exposeFunction('onAuthAppStateSetSocketState', async (state)=>{
+                this.emit(Events.SET_SOCKET_STATE, state)
+            })
+
             await this.pupPage.exposeFunction('onAppStateHasSyncedEvent', async () => {
                 const authEventPayload = await this.authStrategy.getAuthEventPayload();
                 /**
@@ -241,6 +256,8 @@ class Client extends EventEmitter {
                  * Emitted when the client has initialized and is ready to receive messages.
                  * @event Client#ready
                  */
+                this.statusInfo.recentMsgsSynced = (await this?.pupPage?.evaluate(()=>window?.Store?.HistorySync?.getHistorySyncStatus()?.recentCompleted))??false
+                console.log(this.statusInfo)
                 this.emit(Events.READY);
                 this.authStrategy.afterAuthReady();
             });
@@ -263,7 +280,8 @@ class Client extends EventEmitter {
         }
         await this.pupPage.evaluate(() => {
             window.AuthStore.AppState.on('change:state', (_AppState, state) => { window.onAuthAppStateChangedEvent(state); });
-            window.AuthStore.AppState.on('change:hasSynced', () => { window.onAppStateHasSyncedEvent(); });
+            window.AuthStore.AppState.on('change:hasSynced', () => { window.onAppStateHasSyncedEvent(); window.AuthStore.Cmd.on("on_recent_chat_history_synced", ()=>{window.onAppStateRecentChatHystorySyncedEvent()}) });
+            window.AuthStore.Cmd.on('set_socket_state', (state) => { window.onAuthAppStateSetSocketState(state) });
             window.AuthStore.Cmd.on('offline_progress_update', () => {
                 window.onOfflineProgressUpdateEvent(window.AuthStore.OfflineMessageHandler.getOfflineDeliveryProgress()); 
             });
@@ -278,6 +296,7 @@ class Client extends EventEmitter {
      */
     async initialize() { 
         this.id = this.id??Util.generateRandomIdForFolder();
+
 /*        this.emit(Events.GENERATE_ID, this.id);
         const removeFolder = () => Util.removeClientFolderById(this.id)
         process.on("exit", removeFolder);*/
@@ -293,6 +312,32 @@ class Client extends EventEmitter {
 
         browser = null;
         page = null;
+
+        [Events.READY, Events.QR_RECEIVED, Events.SET_SOCKET_STATE, Events.INITIAL_LOAD_READY, Events.AUTHENTICATED, Events.READY, Events.DISCONNECTED, Events.BROWSER_LAUNCH, Events.GENERATE_ID, Events.RECENT_MSG_SYNCED].map(event=>{
+            console.log("SET:", event)
+            this.on(event, async (state)=>{
+                console.log("on:", event)
+                switch(event){
+                    case Events.RECENT_MSG_SYNCED:
+                        this.statusInfo.recentMsgsSynced = true
+                    break
+                    case Events.SET_SOCKET_STATE:
+                        console.log(state)
+                        this.statusInfo.socet_state = state
+                        this.statusInfo.clientProgressStatus = event
+                    break
+                    case Events.QR_RECEIVED:
+                        this.statusInfo.socet_state = null
+                        this.statusInfo.qr = state
+                        this.statusInfo.clientProgressStatus = event
+                        this.statusInfo.recentMsgsSynced = false
+                    break
+                    default:          
+                        this.statusInfo.clientProgressStatus = event
+                }
+                this.emit(Events.STATUS_UPDATE, this)
+            })
+        })
 
         await this.authStrategy.beforeBrowserInitialized();
 
@@ -354,7 +399,7 @@ class Client extends EventEmitter {
                 this.lastLoggedOut = false;
             }
             await this.inject(true);
-        });
+        }, {timeout: 0});
 /*        process.removeListener("exit", removeFolder)*/
     }
 
@@ -804,7 +849,6 @@ class Client extends EventEmitter {
             await this.authStrategy.destroy();
         }catch(e){}
     }
-
     async removeClientFolder () {
         Util.removeClientFolderById(this.id)
     }
@@ -820,6 +864,7 @@ class Client extends EventEmitter {
         await this.pupPage.evaluate(() => {
             return window.Store.AppState.logout();
         });
+        await (new Promise(resolve=>this.once("qr", resolve)))
         await this.pupBrowser.close();
         
         let maxDelay = 0;
@@ -1000,7 +1045,7 @@ class Client extends EventEmitter {
      */
     async getChats() {
         let chats = await this.pupPage.evaluate(async () => {
-            return await window.WWebJS.getChats();
+            return window.WWebJS?await window.WWebJS.getChats():[]
         });
 
         return chats.map(chat => ChatFactory.create(this, chat));
