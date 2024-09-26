@@ -357,6 +357,7 @@ app.delete('/:clientid', async (req, res) => {
         await clientsOpened[req.params?.clientid]?.client.logout()
         await clientsOpened[req.params?.clientid]?.client.removeClientFolder()
         console.log("delete client: " + req.params?.clientid)
+        try{res.send("success")}catch(e){}
     }else{
         try{res.send("client not found")}catch(e){}
     }
