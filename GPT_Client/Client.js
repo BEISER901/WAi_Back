@@ -1,7 +1,5 @@
 'use strict'
 
-const { File } = require('@web-std/file')
-
 const patternAnswer = require("fs").readFileSync(__dirname + "/.config/pattern_answer", "utf8") 
 const patternSystem = require("fs").readFileSync(__dirname + "/.config/pattern_system", "utf8") 
 
