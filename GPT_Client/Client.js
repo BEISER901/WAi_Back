@@ -12,6 +12,8 @@ const patternGenerateSystem = require("fs").readFileSync(__dirname + "/.config/p
 const { DefaultOptions } = require('./src/util/Constants')
 const OpenAI = require("openai")
 
+const { File, Blob } = require("@web-std/file")
+
 var fs = require('fs')
 
 const openai = new OpenAI({ apiKey: process.env.GPT_API_KEY })
