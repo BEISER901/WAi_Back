@@ -6,6 +6,24 @@ const initHeaders = (res) => {
     res.header("Access-Control-Allow-Methods", "*");
 }
 
+const convertTextTagsToText = (firstTag, lastTag, text, func) => {
+    let indexTextTag = -1
+    const arr = text.split(firstTag).flatMap((el, idx)=>{
+        const json = (()=>{try{return JSON.parse(el.split(lastTag)[0])}catch(e){}})()
+        const value =   el.includes(lastTag)?
+                            json??el.split(lastTag)[0]
+                        :
+                            null
+        if(value)indexTextTag+=1
+        return (     
+            value?
+                (func(value, indexTextTag) + (el.split(lastTag)[1]??""))
+            :el                                  
+        )
+    })
+    return arr.filter(v=>v).join("")
+}
+
 // ./start.js
 
 const clientsOpened = {}
@@ -123,20 +141,33 @@ const startClient = async (clientId, onStatusChange) => {
             }
         }
         const clientInfo = (await supabase.from("Clients").select().eq("clientid", client.id)).data[0]
-        if(clientInfo.active)if(/*!(data?.[0]?.dont_follow_chats??[]).includes(reqmsg.from)*/ reqmsg.from == "77056039304@c.us"){
+        let pattern = convertTextTagsToText("<text!>", "<!text>", clientInfo.patternText, (content)=>{
+            return `\n${content.name}:"${content.value}"\n`
+        })
+        pattern = convertTextTagsToText("<list!>", "<!list>", pattern, (content)=>{
+            return convertTextTagsToText("<listitem!>", "<!listitem>", content, (content, index)=>{
+                return `${index==0?"\n":""}${index+1}) ${convertTextTagsToText("<textrow!>", "<!textrow>", content, ({name, value})=>{
+                    return `\n${name}:"${value}"` 
+                })}\n`
+            })
+        })
+        console.log(reqmsg.from  == "77071911700@c.us")
+        if(clientInfo.active)if(process.env.debug == "true"?reqmsg.from == "77071911700@c.us":!(data?.[0]?.dont_follow_chats??[]).includes(reqmsg.from)){
             const chat = await client.getChatById(reqmsg.from)
             await chat.sendStateTyping()
             const gptclient = new GPTClient()
             const chat_msgs = await chat.fetchMessages({limit: 1000000})
-
+            console.log(123)
             const answer = await gptclient.Answer(
                 client.info.pushname,
                 client.info.pushname,
                 reqmsg.body,
                 new Date(),
-                data[0].example_for_ai,
-                data[0].additionally,
-                chat_msgs.map(msg=>({content: msg.body, fromMe: msg.fromMe, timestamp: msg.timestamp}))
+                null,
+                pattern,
+                chat_msgs.map(msg=>({content: msg.body, fromMe: msg.fromMe, timestamp: msg.timestamp})),
+                supabase,
+                client
             )
             const msgs = answer.split("//newmessage//").filter(msg=>msg!="")
             for(const index in msgs){  
@@ -190,7 +221,7 @@ app.get('/:clientid', async (req, res) => {
 app.get('/:clientid/chats', async (req, res) => {
     if(req.params?.clientid === "favicon.ico" || req.params?.chatid === "favicon.ico")return;
     initHeaders(res)
-    if(clientsOpened[req.params?.clientid]?.client && clientsOpened[req.params?.clientid]?.info.status == "ready"){
+    if(clientsOpened[req.params?.clientid]?.client){
         const chats = (await clientsOpened[req.params?.clientid].client.getChats()).filter(chat=>!(req?.body?.filter??[]).includes(chat.id._serialized))
         try{res.send(chats.map(chat=>({userId: chat.id.user, name: chat.name, serialized: chat.id._serialized})))}catch(e){}
     }else{

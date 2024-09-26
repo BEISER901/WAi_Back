@@ -116,7 +116,8 @@ class Client {
       console.log("finished")
     }
 
-    async Answer(yourename, username, message, time, examples, additionally, all_messages) {
+    async Answer(yourename, username, message, time, examples, additionally, all_messages, supabase, WAClient) {
+    	const openai_model  = (await supabase.from("Clients").select("openai_model").eq("id", WAClient.info.wid._serialized)).data?.[0]?.openai_model
     	const [patternanswer, patternsystem] = [patternAnswer, patternSystem].map(text=>
     		text
     		.replace("__your_name__", yourename)
@@ -124,9 +125,10 @@ class Client {
     		.replace("__message__", message)
     		.replace("__time__", time.toString())
     		.replace("__examples__", (examples??[]).filter((msg, index, arr)=>(msg.content??"").length > 0 ).map((msg, index, arr)=>(parseInt((new Date(msg.timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))!=parseInt((new Date((arr[index-1]??{timestamp:0}).timestamp*1000)).getTime() / (1000 * 60 * 60 * 24))?"\n --- Начало общения с аудиторией ---\n":"") + (msg.fromMe?`//newmessage// ${msg.content}`:`${(arr[index-1]??msg).fromMe != msg?"\nОтвет аудитории: ": ""}//newmessage// ${msg.content}${(arr[index-1]??msg).fromMe != msg.fromMe ?"\n": ""}`)).join(" "))
-    		.replace("__additionally__", "Ты сдаешь квартиру в городе Алматы, по адресу Шевченко 85, если к тебе обратяться гости и спросят есть ли у Вас квартиры скажи им что у тебя на сегодня есть 2 свободные квартиры")
+    		.replace("__additionally__", additionally)
     		.substring(0, 300000)
     	)
+    	console.log(patternsystem)
     	console.log(all_messages
 		      .filter((msg, index, arr)=>(msg.content??"").length > 0 )
 		      .map((msg, index, arr)=>msg.fromMe?
@@ -160,7 +162,7 @@ class Client {
 		      	}
 		      ) 
 		    ],
-		    ...this.options.GPT_learning
+		    model: openai_model
 		  })
     	return completion.choices[0].message.content
     }
