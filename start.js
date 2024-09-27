@@ -141,6 +141,7 @@ const startClient = async (clientId, onStatusChange) => {
             }
         }
         const clientInfo = (await supabase.from("Clients").select().eq("clientid", client.id)).data[0]
+        if(!clientInfo?.patternText)return;
         let pattern = convertTextTagsToText("<text!>", "<!text>", clientInfo.patternText, (content)=>{
             return `\n${content.name}:"${content.value}"\n`
         })
