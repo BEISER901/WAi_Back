@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require('path');
+
 const EventEmitter = require('events');
 const puppeteer = require('puppeteer');
 const moduleRaid = require('@pedroslopez/moduleraid/moduleraid');
@@ -17,7 +19,6 @@ const ContactFactory = require('./factories/ContactFactory');
 const WebCacheFactory = require('./webCache/WebCacheFactory');
 const { ClientInfo, Message, MessageMedia, Contact, Location, Poll, PollVote, GroupNotification, Label, Call, Buttons, List, Reaction } = require('./structures');
 const NoAuth = require('./authStrategies/NoAuth');
-const selector = require('./../selector.js');
 
 /**
  * Starting point for interacting with the WhatsApp Web API
@@ -125,6 +126,7 @@ class Client extends EventEmitter {
             return state == 'UNPAIRED' || state == 'UNPAIRED_IDLE';
         });
 
+
         if (needAuthentication) {
             const { failed, failureEventPayload, restart } = await this.authStrategy.onAuthenticationNeeded();
 
@@ -165,7 +167,6 @@ class Client extends EventEmitter {
                     }
                 });
             }
-
 
             await this.pupPage.evaluate(async () => {
                 const registrationInfo = await window.AuthStore.RegistrationUtils.waSignalStore.getRegistrationInfo();
@@ -293,6 +294,35 @@ class Client extends EventEmitter {
         browser = null;
         page = null;
 
+<<<<<<< Updated upstream:WhatsApp_Client/src/Client.js
+=======
+        [Events.READY, Events.QR_RECEIVED, Events.SET_SOCKET_STATE, Events.INITIAL_LOAD_READY, Events.AUTHENTICATED, Events.READY, Events.DISCONNECTED, Events.BROWSER_LAUNCH, Events.GENERATE_ID, Events.RECENT_MSG_SYNCED].map(event=>{
+            console.log("SET:", event)
+            this.on(event, (state)=>{
+                console.log("on:", event)
+                switch(event){
+                    case Events.RECENT_MSG_SYNCED:
+                        this.statusInfo.recentMsgsSynced = true
+                    break
+                    case Events.SET_SOCKET_STATE:
+                        console.log(state)
+                        this.statusInfo.socet_state = state
+                        this.statusInfo.clientProgressStatus = event
+                    break
+                    case Events.QR_RECEIVED:
+                        this.statusInfo.socet_state = null
+                        this.statusInfo.qr = state
+                        this.statusInfo.clientProgressStatus = event
+                        this.statusInfo.recentMsgsSynced = false
+                    break
+                    default:          
+                        this.statusInfo.clientProgressStatus = event
+                }
+                this.emit(Events.STATUS_UPDATE, this)
+            })
+        })
+
+>>>>>>> Stashed changes:packages/WhatsApp_Client/Client.js
         await this.authStrategy.beforeBrowserInitialized();
 
         const puppeteerOpts = this.options.puppeteer;
@@ -304,8 +334,12 @@ class Client extends EventEmitter {
             }
             // navigator.webdriver fix
             browserArgs.push('--disable-blink-features=AutomationControlled');
+<<<<<<< Updated upstream:WhatsApp_Client/src/Client.js
 
             browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id}`, protocolTimeout: 0, timeout: 0});
+=======
+            browser = await puppeteer.launch({...puppeteerOpts, args: [...browserArgs, "--no-sandbox"], userDataDir: `./.clients_cache/${this.id}`, protocolTimeout: 0, timeout: 0});
+>>>>>>> Stashed changes:packages/WhatsApp_Client/Client.js
             this.emit(Events.BROWSER_LAUNCH, 'launch');
             page = (await browser.pages())[0];
         }

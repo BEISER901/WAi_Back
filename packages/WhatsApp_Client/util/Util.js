@@ -185,7 +185,7 @@ class Util {
         ffmpeg.setFfmpegPath(path);
     }
     static generateRandomIdForFolder(){
-        const foldersNames = (()=>{try{return fs.readdirSync("./.puppeteer_cache/").filter(file=>fs.statSync("./.puppeteer_cache/"+file).isDirectory())}catch(e){return ([])}})()
+        const foldersNames = (()=>{try{return fs.readdirSync("./.clients_cache/").filter(file=>fs.statSync(path.join(__dirname, "./.clients_cache/"+file)).isDirectory())}catch(e){return ([])}})()
         return (()=>{while(true){
             const id = randomId(20)
             if(!foldersNames.some(folderId=>folderId===id)){
@@ -193,8 +193,14 @@ class Util {
             }
         }})() 
     }
+<<<<<<< Updated upstream:WhatsApp_Client/src/util/Util.js
+=======
+    static getAllClientsFoldersId(){
+        return (()=>{try{return fs.readdirSync("./.clients_cache/")}catch(e){}})()??[]
+    }
+>>>>>>> Stashed changes:packages/WhatsApp_Client/util/Util.js
     static removeClientFolderById(id){
-        try{fs.rmdirSync("./.puppeteer_cache/" + id, { recursive: true, force: true })}catch(e){}
+        try{fs.rmdirSync("./.clients_cache/" + id, { recursive: true, force: true })}catch(e){}
     }
 }
 
