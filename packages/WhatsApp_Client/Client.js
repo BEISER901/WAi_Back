@@ -88,6 +88,13 @@ class Client extends EventEmitter {
         this.lastLoggedOut = false;
 
         this.id = null
+        
+        this.statusInfo = {
+            recentMsgsSynced: false,
+            clientProgressStatus: "launch",
+            qr: false,
+            socet_state: null
+        }
 
         Util.setFfmpegPath(this.options.ffmpegPath);
     }
