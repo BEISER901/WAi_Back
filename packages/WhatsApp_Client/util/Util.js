@@ -193,12 +193,9 @@ class Util {
             }
         }})() 
     }
-<<<<<<< Updated upstream:WhatsApp_Client/src/util/Util.js
-=======
     static getAllClientsFoldersId(){
         return (()=>{try{return fs.readdirSync("./.clients_cache/")}catch(e){}})()??[]
     }
->>>>>>> Stashed changes:packages/WhatsApp_Client/util/Util.js
     static removeClientFolderById(id){
         try{fs.rmdirSync("./.clients_cache/" + id, { recursive: true, force: true })}catch(e){}
     }

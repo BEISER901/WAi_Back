@@ -293,9 +293,6 @@ class Client extends EventEmitter {
 
         browser = null;
         page = null;
-
-<<<<<<< Updated upstream:WhatsApp_Client/src/Client.js
-=======
         [Events.READY, Events.QR_RECEIVED, Events.SET_SOCKET_STATE, Events.INITIAL_LOAD_READY, Events.AUTHENTICATED, Events.READY, Events.DISCONNECTED, Events.BROWSER_LAUNCH, Events.GENERATE_ID, Events.RECENT_MSG_SYNCED].map(event=>{
             console.log("SET:", event)
             this.on(event, (state)=>{
@@ -322,7 +319,6 @@ class Client extends EventEmitter {
             })
         })
 
->>>>>>> Stashed changes:packages/WhatsApp_Client/Client.js
         await this.authStrategy.beforeBrowserInitialized();
 
         const puppeteerOpts = this.options.puppeteer;
@@ -334,12 +330,7 @@ class Client extends EventEmitter {
             }
             // navigator.webdriver fix
             browserArgs.push('--disable-blink-features=AutomationControlled');
-<<<<<<< Updated upstream:WhatsApp_Client/src/Client.js
-
-            browser = await puppeteer.launch({...puppeteerOpts, args: browserArgs, userDataDir: `./.puppeteer_cache/${this.id}`, protocolTimeout: 0, timeout: 0});
-=======
             browser = await puppeteer.launch({...puppeteerOpts, args: [...browserArgs, "--no-sandbox"], userDataDir: `./.clients_cache/${this.id}`, protocolTimeout: 0, timeout: 0});
->>>>>>> Stashed changes:packages/WhatsApp_Client/Client.js
             this.emit(Events.BROWSER_LAUNCH, 'launch');
             page = (await browser.pages())[0];
         }

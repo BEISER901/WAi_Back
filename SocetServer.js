@@ -41,10 +41,10 @@ class SocketClient {
 }
 
 module.exports = class SocketServer extends EventEmitter {
-    constructor(port, opts){
+    constructor(server, opts){
         super();
         this.absoluteCountAvailableClients = 
-        this.port = port;
+        this.server = server;
         this._wss = null;
         this._commands = [];
         this.connections = [];
@@ -101,7 +101,7 @@ module.exports = class SocketServer extends EventEmitter {
         this.initializeNewClients()
     }
     startServer(){
-        const wsServer = new WebSocket.Server({port: this.port})
+        const wsServer = new WebSocket.Server({server: this.server})
         this._wss = wsServer
         console.log("start server on port: ", this.port)
 
