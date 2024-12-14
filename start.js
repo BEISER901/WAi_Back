@@ -3,21 +3,22 @@ const SocetServer = require("./SocetServer")
 const fs = require('fs')
 const express = require('express');
 const cors = require('cors');
+const server = require('http').createServer();
 
 // Web Server
 
-const server = express();
+const app = express();
 
-server.use(cors());
-server.use(express.json())
-server.use(express.urlencoded({ extended: true }))
+app.use(cors());
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
 const routeFiles = fs
   .readdirSync('./web_routes')
   .filter((file) => file.endsWith('.js'))
 for (const file of routeFiles) {
   const route = require(`./web_routes/${file}`)
-  server[route.type](route.path, route.execute.bind(
+  app[route.type](route.path, route.execute.bind(
         { 
             ...route, 
             getWAClients: ()=>socetServer.WAClients, 
@@ -25,6 +26,8 @@ for (const file of routeFiles) {
         }
     ))
 }
+
+server.on('request', app)
 
 // Socket Server
 
@@ -34,7 +37,7 @@ function getAllClientsFoldersId(){
 
 const socetServer = new SocetServer( server, 
         { 
-            absoluteCountAvailableClients: 5
+            absoluteCountAvailableClients: 2
         }
     )
 

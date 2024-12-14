@@ -1,8 +1,10 @@
 const WebSocket = require("ws")
 const EventEmitter = require('events')
-const { randomUUID } = require('crypto')
+const { randomUUID, randomBytes } = require('crypto')
 const fs = require('fs')
 const Client = require("./packages/WhatsApp_Client/Client.js")
+const { ObservableArray } = require('./Utils/ObservableArray.js')
+
 
 class SocketClient {
     constructor(ws, serverInfo){
@@ -62,7 +64,7 @@ module.exports = class SocketServer extends EventEmitter {
             return []
         }
     }
-    setInfoToFileCache(json){
+    setInfoToFileCache(json) {
         const fs = require('fs')
         try{
             fs.writeFileSync('./.clients_cache/clients_info.json', JSON.stringify(json))
@@ -71,46 +73,89 @@ module.exports = class SocketServer extends EventEmitter {
             fs.writeFileSync('./.clients_cache/clients_info.json', JSON.stringify(json))
         }
     }
-    createCommand(name, execute){
+    createCommand(name, execute) {
         this._commands.push({ name, execute })
     }
     initializeNewClients(){
-        this.waitWAClients = this.getInfoFromFileCache().filter(({status})=>status=="wait").map(({id})=>{
-            const _client = new Client()
-            _client.id = id
-            _client.initialize()
-            return _client
-        })
-        for( let i = 0; i < this.options.absoluteCountAvailableClients - this.waitWAClients.length; i++ ){
+        // console.log(this.getInfoFromFileCache().filter(({status})=>status=="wait").length)
+        // console.log(this.getInfoFromFileCache().filter(({status})=>status=="wait"))
+        
+        for( let i = 0; i < this.options.absoluteCountAvailableClients /* Count free whatsaap clients */ - this.waitWAClients.length /* Сurrent сount free whatsaap clients */; i++ ){
             const _client = new Client()
             _client.once("launch", ()=>{
-                this.setInfoToFileCache([...this.getInfoFromFileCache(), {id: _client.id, status: "wait"}])     
-                this.waitWAClients.push(_client)
-            })      
+                let _token = null
+                while(true){
+                    _token = randomBytes(64).toString("base64").substring(0, 70)
+                    if(!this.getInfoFromFileCache().some(({ token })=>token == _token)){
+                        break
+                    }
+                }
+                _client._token = _token
+                this.waitWAClients.push(_client)   
+                this.setInfoToFileCache(
+                    Object.assign(
+                        [],
+                        this.getInfoFromFileCache(), 
+                        { 
+                            [this.getInfoFromFileCache().some(({id})=>id==_client.id)?this.getInfoFromFileCache().findIndex(({id})=>id==_client.id):this.getInfoFromFileCache().length??(this.getInfoFromFileCache().length-1)]: 
+                                { id: _client.id, status: "wait", _token: _token, WID: "" } 
+                        }
+                    )
+                )
+            })     
+            _client.once("ready", ()=>{
+                this.setInfoToFileCache(Object.assign(
+                        [],
+                        this.getInfoFromFileCache(), 
+                        { 
+                            [this.getInfoFromFileCache().some(({id})=>id==_client.id)?this.getInfoFromFileCache().findIndex(({id})=>id==_client.id):this.getInfoFromFileCache().length??(this.getInfoFromFileCache().length-1)]: 
+                                { id: _client.id, status: "reserved", _token: _token, WID: "" } 
+                        }
+                    )
+                )        
+            })
             _client.initialize()
         }
     }
-    runAllWAClients(){
-        console.log(this.waitWAClients)
-        this.WAClients = this.WAClients.map(({id})=>{
+    runAllWAClients() {
+        // Run and update whatsaap (reserved) clients in local variable this.WAClients
+        this.WAClients = this.WAClients.map(({id, _token})=>{
             const _client = new Client()
+            _client._token = _token
             _client.id = id
             _client.initialize()
             return _client
         })
+
+        // Run and update whatsaap (wait) clients in local variable this.waitWAClients
+        this.waitWAClients = this.getInfoFromFileCache().filter(({status})=>status=="wait").map(({id, _token})=>{
+            const _client = new Client()
+            _client._token = _token
+            _client.id = id
+            _client.initialize()
+            return _client
+        })
+
+        // If count whatsaap (wait) clients lack they saving to file and adding to local variable this.waitWAClients
         this.initializeNewClients()
     }
-    startServer(){
+
+    startServer() {
+        // Run WebSocket server
         const wsServer = new WebSocket.Server({server: this.server})
         this._wss = wsServer
-        console.log("start server on port: ", this.port)
 
-        this.setInfoToFileCache(this.getInfoFromFileCache().map(({id, status})=>status=="unconfirmed"?{id, status: "wait"}:{id, status}))
+
+        // Update status for unconfirmed whatsaap clients to whatsaap wait clients, after rerunning server 
+        this.setInfoToFileCache(this.getInfoFromFileCache().map(({id, status, ...props})=>status=="unconfirmed"?{id, status: "wait", ...props}:{id, status, ...props}))
+        
+        // Init local variable this.WAClients ( Reserved clients ) from file
         this.WAClients = this.getInfoFromFileCache().filter(({status})=>status=="reserved")
 
+        // Run wait clients and reserved whatsaap clients
         this.runAllWAClients()
 
-        this.absoluteCountAvailableClients
+        // Event of check USER CLIENT connected
         wsServer.on('connection', (ws) => {
             const _socetClient = new SocketClient(ws, this)
             this.connections.push(_socetClient)

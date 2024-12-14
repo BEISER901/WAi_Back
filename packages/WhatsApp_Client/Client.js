@@ -96,6 +96,8 @@ class Client extends EventEmitter {
             socet_state: null
         }
 
+        this._token = null
+
         Util.setFfmpegPath(this.options.ffmpegPath);
     }
     /**
@@ -286,8 +288,6 @@ class Client extends EventEmitter {
      */
     async initialize() { 
         this.id = this.id??Util.generateRandomIdForFolder();
-        const removeFolder = () => Util.removeClientFolderById(this.id)
-        process.on("exit", removeFolder);
         let 
             /**
              * @type {puppeteer.Browser}
@@ -300,10 +300,9 @@ class Client extends EventEmitter {
 
         browser = null;
         page = null;
-        [Events.READY, Events.QR_RECEIVED, Events.SET_SOCKET_STATE, Events.INITIAL_LOAD_READY, Events.AUTHENTICATED, Events.READY, Events.DISCONNECTED, Events.BROWSER_LAUNCH, Events.GENERATE_ID, Events.RECENT_MSG_SYNCED].map(event=>{
-            console.log("SET:", event)
+        [Events.QR_RECEIVED, Events.SET_SOCKET_STATE, Events.INITIAL_LOAD_READY, Events.AUTHENTICATED, Events.READY, Events.DISCONNECTED, Events.BROWSER_LAUNCH, Events.GENERATE_ID, Events.RECENT_MSG_SYNCED].map(event=>{
             this.on(event, (state)=>{
-                console.log("on:", event)
+                console.log(this.id, ":", event)
                 switch(event){
                     case Events.RECENT_MSG_SYNCED:
                         this.statusInfo.recentMsgsSynced = true
@@ -386,7 +385,6 @@ class Client extends EventEmitter {
             }
             await this.inject(true);
         });
-        process.removeListener("exit", removeFolder)
     }
 
     /**
@@ -841,6 +839,7 @@ class Client extends EventEmitter {
         await this.pupPage.evaluate(() => {
             return window.Store.AppState.logout();
         });
+        await (new Promise(resolve=>this.on("qr", resolve)))
         await this.pupBrowser.close();
         
         let maxDelay = 0;
